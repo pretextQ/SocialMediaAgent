@@ -7,24 +7,19 @@ report：由结构化结果规则渲染人类可读 markdown（确定性）
 
 from __future__ import annotations
 
-from typing import Any
-
-from socialmedia_agent.agents.account_diagnosis.prompts import SYSTEM_PROMPT, build_facts_prompt
+from socialmedia_agent.agents.account_diagnosis.prompts import SYSTEM_PROMPT
 from socialmedia_agent.agents.account_diagnosis.schemas import DiagnosisOutput
+from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.llm.gateway import LLMGateway
 
 
-def _invoke(registry: ToolRegistry, name: str, **kwargs: Any) -> Any:
-    return registry.get(name).invoke(**kwargs)
-
-
 def gather(registry: ToolRegistry, account_id: str) -> dict:
     """收集账号诊断所需 DB 事实（只经 Tool）。"""
-    profile = _invoke(registry, "get_account_profile", account_id=account_id)
-    perf = _invoke(registry, "analyze_content_performance", account_id=account_id)
-    recent = _invoke(registry, "get_recent_contents", account_id=account_id, limit=5)
-    strategy = _invoke(registry, "get_historical_strategy", account_id=account_id)
+    profile = invoke_tool(registry, "get_account_profile", account_id=account_id)
+    perf = invoke_tool(registry, "analyze_content_performance", account_id=account_id)
+    recent = invoke_tool(registry, "get_recent_contents", account_id=account_id, limit=5)
+    strategy = invoke_tool(registry, "get_historical_strategy", account_id=account_id)
     return {
         "account_id": account_id,
         "profile": profile,
@@ -36,14 +31,9 @@ def gather(registry: ToolRegistry, account_id: str) -> dict:
 
 def analyze(gateway: LLMGateway | None, facts: dict) -> DiagnosisOutput:
     """LLM 结构化输出；失败或未配置 gateway 时规则兜底。"""
-    if gateway is None:
-        return _rule_fallback(facts)
-    prompt = SYSTEM_PROMPT
-    text = build_facts_prompt(facts)
-    result = gateway.call(prompt, text, response_format="json", response_model=DiagnosisOutput)
-    if result.success and isinstance(result.data, DiagnosisOutput):
-        return result.data
-    return _rule_fallback(facts)
+    return llm_analyze(
+        gateway, SYSTEM_PROMPT, facts, DiagnosisOutput, fallback=_rule_fallback
+    )
 
 
 def _rule_fallback(facts: dict) -> DiagnosisOutput:
@@ -86,29 +76,14 @@ def render_report(diagnosis: DiagnosisOutput, facts: dict) -> str:
     """由结构化结果渲染人类可读 markdown（确定性）。"""
     profile = facts.get("profile") or {}
     nickname = profile.get("nickname") or facts.get("account_id", "未知账号")
-    lines = [
-        f"# 账号诊断报告：{nickname}",
-        "",
-        f"- 账号健康度：**{diagnosis.account_health}/100**",
-        "",
-        "## 优势",
+    sections = [
+        ("优势", diagnosis.strengths),
+        ("不足", diagnosis.weaknesses),
+        ("异常", diagnosis.anomalies),
+        ("建议", diagnosis.recommendations),
     ]
-    lines.extend(f"- {item}" for item in diagnosis.strengths)
-    if not diagnosis.strengths:
-        lines.append("- （无）")
-    lines.append("")
-    lines.append("## 不足")
-    lines.extend(f"- {item}" for item in diagnosis.weaknesses)
-    if not diagnosis.weaknesses:
-        lines.append("- （无）")
-    lines.append("")
-    lines.append("## 异常")
-    lines.extend(f"- {item}" for item in diagnosis.anomalies)
-    if not diagnosis.anomalies:
-        lines.append("- （无）")
-    lines.append("")
-    lines.append("## 建议")
-    lines.extend(f"- {item}" for item in diagnosis.recommendations)
-    if not diagnosis.recommendations:
-        lines.append("- （无）")
-    return "\n".join(lines)
+    return render_markdown(
+        title=f"账号诊断报告：{nickname}",
+        sections=sections,
+        intro=[f"- 账号健康度：**{diagnosis.account_health}/100**"],
+    )

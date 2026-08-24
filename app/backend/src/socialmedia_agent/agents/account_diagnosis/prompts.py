@@ -23,8 +23,3 @@ SYSTEM_PROMPT = """你是自媒体运营诊断专家。基于下面提供的账�
   "recommendations": ["..."]
 }
 """
-
-
-def build_facts_prompt(facts: dict) -> str:
-    """将 DB 事实序列化为给 LLM 的 user 内容。"""
-    return f"账号诊断事实如下：\n{facts}"
