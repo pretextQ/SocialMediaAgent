@@ -11,7 +11,7 @@ from fastapi import FastAPI
 
 from socialmedia_agent.database.session import Database
 
-from .routers import accounts, content_analysis, contents, diagnosis, metrics
+from .routers import accounts, content_analysis, contents, diagnosis, metrics, trends
 
 
 def create_app(database: Database | None = None) -> FastAPI:
@@ -30,6 +30,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     app.include_router(contents.router, prefix="/api/v1")
     app.include_router(content_analysis.router, prefix="/api/v1")
     app.include_router(metrics.router, prefix="/api/v1")
+    app.include_router(trends.router, prefix="/api/v1")
     app.include_router(diagnosis.router, prefix="/api/v1")
     return app
 

@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -24,6 +24,7 @@ from socialmedia_agent.models.content import ContentModel
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 from .base import Tool, ToolContext
 
@@ -56,6 +57,7 @@ class SearchKnowledgeArgs(BaseModel):
 
 class TrendArgs(BaseModel):
     platform: str | None = None
+    period: int = Field(default=7, ge=1, le=90)
 
 
 class StrategyArgs(BaseModel):
@@ -164,8 +166,21 @@ def _search_operation_knowledge(ctx: ToolContext, query: str, top_k: int) -> lis
     return [{"id": h.id, "score": h.score, "payload": h.payload} for h in hits]
 
 
-def _get_trend_data(ctx: ToolContext, platform: str | None) -> list[dict]:
-    return []  # P4 接入真实趋势数据源
+def _get_trend_data(ctx: ToolContext, platform: str | None, period: int) -> list[dict]:
+    with ctx.database.session() as session:
+        since = datetime.now(timezone.utc) - timedelta(days=period)
+        rows = TopicRepository(session).list(platform=platform, since=since)
+        return [
+            {
+                "keyword": r.keyword,
+                "title": r.title,
+                "post_count": r.post_count,
+                "first_seen": r.first_seen.isoformat() if r.first_seen else None,
+                "last_seen": r.last_seen.isoformat() if r.last_seen else None,
+                "summary": r.summary,
+            }
+            for r in rows
+        ]
 
 
 def _get_historical_strategy(ctx: ToolContext, account_id: str) -> dict:
@@ -234,7 +249,7 @@ def build_core_tools(ctx: ToolContext) -> list[Tool]:
         ),
         Tool(
             name="get_trend_data",
-            description="获取平台趋势数据（P4 接入真实源，当前为空）",
+            description="获取平台周期内趋势话题（按 last_seen 过滤）",
             args_schema=TrendArgs,
             fn=lambda **kw: _get_trend_data(ctx, **kw),
         ),

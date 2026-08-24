@@ -1,0 +1,38 @@
+"""趋势分析接口（P4-2）。
+
+POST /api/v1/trends/analysis
+→ 运行 Trend Analysis Agent（gather → analyze → report）
+→ 返回 { analysis, report }
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, Field
+
+from socialmedia_agent.agents.tools.base import ToolContext
+from socialmedia_agent.agents.tools.catalog import build_core_tools
+from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
+from socialmedia_agent.database.session import Database
+
+router = APIRouter(prefix="/trends", tags=["trend_analysis"])
+
+
+class TrendRequest(BaseModel):
+    platform: str
+    period: int = Field(default=7, ge=1, le=90)
+
+
+@router.post("/analysis")
+def analyze_trends(req: TrendRequest, request: Request) -> dict:
+    database: Database = request.app.state.database
+
+    ctx = ToolContext(database=database)
+    registry = ToolRegistry()
+    for tool in build_core_tools(ctx):
+        registry.register(tool)
+
+    graph = build_trend_analysis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
+    state = graph.invoke({"platform": req.platform, "period": req.period})
+    return {"analysis": state["analysis"].model_dump(), "report": state["report"]}

@@ -23,6 +23,7 @@ from socialmedia_agent.domain.account import Account
 from socialmedia_agent.domain.content import Content
 from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
 from socialmedia_agent.domain.metric import Metric
+from socialmedia_agent.domain.topic import Topic
 from socialmedia_agent.memory.models import MemoryCategory, MemoryEntry
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.memory.summarizer import Summarizer
@@ -30,6 +31,7 @@ from socialmedia_agent.rag import HashEmbedder, InMemoryVectorStore, Retriever
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 
 NOW = datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc)
@@ -83,6 +85,30 @@ def context(tmp_path, monkeypatch):
                 value="500",
                 captured_at=NOW,
                 source=MetricSource.MEDIACRAWLER,
+            )
+        )
+        TopicRepository(session).upsert(
+            Topic(
+                keyword="AI 绘画",
+                platforms=[Platform.BILIBILI],
+                last_seen=NOW,
+                post_count=30,
+            )
+        )
+        TopicRepository(session).upsert(
+            Topic(
+                keyword="职场效率",
+                platforms=[Platform.BILIBILI],
+                last_seen=NOW - timedelta(days=30),
+                post_count=5,
+            )
+        )
+        TopicRepository(session).upsert(
+            Topic(
+                keyword="美食探店",
+                platforms=[Platform.XIAOHONGSHU],
+                last_seen=NOW,
+                post_count=50,
             )
         )
 
@@ -207,8 +233,14 @@ def test_search_operation_knowledge(context):
 
 def test_get_trend_data(context):
     tools = {t.name: t for t in build_core_tools(context)}
-    result = tools["get_trend_data"].invoke()
-    assert isinstance(result, list)
+    result = tools["get_trend_data"].invoke(platform="bilibili", period=7)
+    assert len(result) == 1
+    assert result[0]["keyword"] == "AI 绘画"
+    assert result[0]["post_count"] == 30
+
+    result_all = tools["get_trend_data"].invoke(period=90)
+    assert len(result_all) == 3
+    assert result_all[0]["keyword"] == "美食探店"  # post_count 降序
 
 
 def test_save_and_get_historical_strategy(context):
