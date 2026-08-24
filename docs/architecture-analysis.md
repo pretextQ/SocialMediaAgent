@@ -359,9 +359,15 @@ Memory：写入=每次诊断/策略执行后沉淀账号特征；读取=Agent �
 
 ### P4
 
-- 每个 Agent 有固定输入/输出契约、prompts、节点图、单测+fixture e2e
-- 全部通过回归套件
-- 可组合调用
+- [x] 每个 Agent 有固定输入/输出契约、prompts、节点图、单测+fixture e2e（`agents/{content_analysis,trend_analysis,topic_recommendation,title_optimization,strategy_advisor}/` + 各自 `tests/agent/` 契约/e2e）
+- [x] 全部通过回归套件（`pytest` 217 passed）
+- [x] 可组合调用（`tests/agent/test_p4_composition.py`：诊断→内容分析→选题→标题优化→策略 关联一致；最小图 Agent 级路由组合）
+
+> **状态（2026-08-24 记录）**：P4 全部三条 DoD 达成，已提交并推送。
+> 产出：Content Analysis / Trend Analysis / Topic Recommendation / Title Optimization / Strategy Advisor 五个 Agent 全可用；
+> 新增第 9 个内部 Tool `get_content_details`；`get_trend_data` 接入 Topic 数据层（`TopicRepository`，平台+周期过滤）；
+> Memory 读-写闭环（Strategy Advisor persist → `save_operation_memory`）；Memory 独立库接线（`SMA_MEMORY_DB_URL` / `build_memory_store`）。
+> API：`POST /api/v1/contents/{id}/analysis`、`/trends/analysis`、`/accounts/{id}/topic-recommendation`、`/titles/optimize`、`/accounts/{id}/strategy`（gateway=None 规则兜底可无密钥演示）。
 
 ### P5
 

@@ -4,6 +4,7 @@
 > 在进入对应阶段前必须走一次 ADR 决策：**参考 / Adapter 封装 / 重新实现 / 不采用**。
 > 本表为 P0.9 初稿（基于 `docs/source-analysis.md` 的已核验源码事实）。
 > **结论以各阶段正式 ADR 为准**，本表仅作预判与检索入口。
+> **P4 补充（2026-08-24）**：趋势分析 / 选题推荐在 P4 为**新增实现**（基于自建 Topic 数据层与 RAG，见 `agents/trend_analysis/`、`agents/topic_recommendation/`），MatrixFlow 无对应模块，不涉及移植候选，无需额外 ADR。
 
 ## 决策口径
 
@@ -27,7 +28,7 @@
 | AI 规则兜底 | `ai/AIService.ts: ruleBasedPrePublishCheck()` | 参考 | P3 | LLM 失败降级确定性规则（ADR-0003 已确认：规则兜底实现） |
 | 异常检测 | `services/AnomalyService.ts`（report/getActiveAlerts）、`ai/AIService.ts: detectAnomaly()`（:250 映射表） | 不采用（逻辑重新实现） | P3 | 纯 severity/action 映射、不计算指标；改由 LLM 基于 DB 事实识别 + 规则兜底（ADR-0003 已确认） |
 | LLM 多提供商 + 降级 | `ai/LLMService.ts: call()/callProvider()` | 重新实现 | P2 llm_gateway | 无 JSON 模式/熔断/重试；`fallbackToRules` 分支有 bug |
-| Stats 分层聚合 | `services/StatsService.ts`（fetchVideoStats/fetchPlatformStats/getOverviewStats） | 重新实现 | P1/P3 | 在统一模型+数值化指标上重写 |
+| Stats 分层聚合 | `services/StatsService.ts`（fetchVideoStats/fetchPlatformStats/getOverviewStats） | 重新实现（已确认） | P1/P3/P4 | 已实现：`analyze_content_performance` + 各 Agent 规则聚合（Content Analysis 质量分 / Trend 趋势分 / Strategy 分档策略），在统一模型+数值化指标上重写 |
 | MCP 工具命名与校验 | `mcp-server/index.ts`（18 tools、handleToolCall） | 参考 | P5 | 命名/校验模式参考，不复制 bridge 直连 SQLite |
 | AICache | `ai/AICache.ts`（内存 Map + 按 hits 淘汰） | 不采用 | - | 实为 LFU、注释与实现不符、无持久化 |
 | Electron 层 | `electron/main.ts`、`preload.ts`、`ipc/handlers.ts` | 不采用 | - | 桌面壳强耦合 |

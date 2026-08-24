@@ -1,6 +1,6 @@
 # P4 实施计划（Agent 扩展：5 个 Agent）
 
-> 状态：待执行（2026-08-24）
+> 状态：已完成（2026-08-24，全量 `pytest` 217 passed，P4 DoD 三条打勾）
 > 参考：`docs/architecture-analysis.md` 第六节 P4 计划、第七节 P4 DoD、`docs/adr/`、`docs/source-analysis.md`
 > 样板：`app/backend/src/socialmedia_agent/agents/account_diagnosis/`（P3 已建，P4 复用其 gather/analyze/report 模式）
 
