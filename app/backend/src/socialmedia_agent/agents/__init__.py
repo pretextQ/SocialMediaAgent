@@ -8,6 +8,10 @@ from .topic_recommendation import (
     TopicRecommendationOutput,
     build_topic_recommendation_graph,
 )
+from .title_optimization import (
+    TitleOptimizationOutput,
+    build_title_optimization_graph,
+)
 from .trend_analysis import TrendAnalysisOutput, build_trend_analysis_graph
 
 __all__ = [
@@ -22,6 +26,8 @@ __all__ = [
     "build_topic_recommendation_graph",
     "TopicRecommendationOutput",
     "RecommendedTopic",
+    "build_title_optimization_graph",
+    "TitleOptimizationOutput",
     "Tool",
     "ToolContext",
     "ToolRegistry",

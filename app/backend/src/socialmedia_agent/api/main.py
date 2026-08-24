@@ -17,6 +17,7 @@ from .routers import (
     contents,
     diagnosis,
     metrics,
+    title_optimization,
     topic_recommendation,
     trends,
 )
@@ -41,6 +42,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     app.include_router(trends.router, prefix="/api/v1")
     app.include_router(diagnosis.router, prefix="/api/v1")
     app.include_router(topic_recommendation.router, prefix="/api/v1")
+    app.include_router(title_optimization.router, prefix="/api/v1")
     return app
 
 
