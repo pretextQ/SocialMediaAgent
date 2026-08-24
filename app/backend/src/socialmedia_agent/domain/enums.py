@@ -23,3 +23,10 @@ class OwnerType(str, Enum):
 
     OWNER = "owner"
     OBSERVED = "observed"
+
+
+class ContentType(str, Enum):
+    VIDEO = "video"
+    IMAGE = "image"
+    ARTICLE = "article"
+    NOTE = "note"
