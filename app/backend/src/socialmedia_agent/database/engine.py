@@ -18,6 +18,11 @@ def get_database_url() -> str:
     return os.getenv("SMA_DB_URL") or f"sqlite:///{DEFAULT_DB_PATH}"
 
 
+def get_memory_database_url() -> str:
+    """Memory 独立库 URL（与核心库物理分离，见架构约束）；SMA_MEMORY_DB_URL 可覆盖。"""
+    return os.getenv("SMA_MEMORY_DB_URL") or f"sqlite:///{DEFAULT_DB_DIR / 'sma_memory.db'}"
+
+
 def create_db_engine(url: str | None = None) -> Engine:
     url = url or get_database_url()
     if url.startswith("sqlite"):

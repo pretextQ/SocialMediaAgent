@@ -2,6 +2,7 @@ from .account_diagnosis import DiagnosisOutput, build_diagnosis_graph
 from .content_analysis import ContentAnalysisOutput, build_content_analysis_graph
 from .graph_builder import build_minimal_graph
 from .state import AgentState
+from .strategy_advisor import StrategyAdvisorOutput, build_strategy_advisor_graph
 from .tools import Tool, ToolContext, ToolRegistry, build_core_tools
 from .topic_recommendation import (
     RecommendedTopic,
@@ -28,6 +29,8 @@ __all__ = [
     "RecommendedTopic",
     "build_title_optimization_graph",
     "TitleOptimizationOutput",
+    "build_strategy_advisor_graph",
+    "StrategyAdvisorOutput",
     "Tool",
     "ToolContext",
     "ToolRegistry",

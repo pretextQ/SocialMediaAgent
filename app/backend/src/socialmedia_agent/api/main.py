@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from socialmedia_agent.database.session import Database
+from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 
 from .routers import (
     accounts,
@@ -17,13 +18,16 @@ from .routers import (
     contents,
     diagnosis,
     metrics,
+    strategy_advisor,
     title_optimization,
     topic_recommendation,
     trends,
 )
 
 
-def create_app(database: Database | None = None) -> FastAPI:
+def create_app(
+    database: Database | None = None, memory_store: SQLAlchemyMemoryStore | None = None
+) -> FastAPI:
     db = database or Database()
 
     @asynccontextmanager
@@ -34,6 +38,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     app = FastAPI(title="SocialMediaAgent", version="0.1.0", lifespan=lifespan)
 
     app.state.database = db
+    app.state.memory_store = memory_store
 
     app.include_router(accounts.router, prefix="/api/v1")
     app.include_router(contents.router, prefix="/api/v1")
@@ -43,6 +48,7 @@ def create_app(database: Database | None = None) -> FastAPI:
     app.include_router(diagnosis.router, prefix="/api/v1")
     app.include_router(topic_recommendation.router, prefix="/api/v1")
     app.include_router(title_optimization.router, prefix="/api/v1")
+    app.include_router(strategy_advisor.router, prefix="/api/v1")
     return app
 
 

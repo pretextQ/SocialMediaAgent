@@ -9,7 +9,7 @@ from sqlalchemy import String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from socialmedia_agent.database.base import UTCDateTime
-from socialmedia_agent.database.engine import create_db_engine
+from socialmedia_agent.database.engine import create_db_engine, get_memory_database_url
 from socialmedia_agent.memory.models import MemoryCategory, MemoryEntry
 
 
@@ -86,3 +86,11 @@ class SQLAlchemyMemoryStore:
         if record.expires_at is None:
             return False
         return datetime.now(record.expires_at.tzinfo) > record.expires_at
+
+
+def build_memory_store(url: str | None = None) -> SQLAlchemyMemoryStore:
+    """构造 Memory 独立库 store（建表 + 会话）。"""
+    engine = create_db_engine(url or get_memory_database_url())
+    SQLAlchemyMemoryStore.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    return SQLAlchemyMemoryStore(factory())
