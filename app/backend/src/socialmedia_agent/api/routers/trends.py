@@ -10,9 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
-from socialmedia_agent.agents.tools.base import ToolContext
-from socialmedia_agent.agents.tools.catalog import build_core_tools
-from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
 from socialmedia_agent.agents.trend_analysis.schemas import TrendAnalysisOutput
 from socialmedia_agent.database.session import Database
@@ -39,10 +37,9 @@ class TrendAnalysisResponse(BaseModel):
 def analyze_trends(req: TrendRequest, request: Request) -> TrendAnalysisResponse:
     database: Database = request.app.state.database
 
-    ctx = ToolContext(database=database)
-    registry = ToolRegistry()
-    for tool in build_core_tools(ctx):
-        registry.register(tool)
+    registry = build_registry(
+        database, retriever=getattr(request.app.state, "retriever", None)
+    )
 
     graph = build_trend_analysis_graph(
         registry, gateway=getattr(request.app.state, "gateway", None)

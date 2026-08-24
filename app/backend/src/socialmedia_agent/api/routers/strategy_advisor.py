@@ -44,6 +44,7 @@ def advise_strategy(account_id: str, request: Request) -> StrategyAdvisorRespons
 
     registry = build_registry(
         database,
+        retriever=getattr(request.app.state, "retriever", None),
         memory_store=get_memory_store(request),
         summarizer=Summarizer(),
     )

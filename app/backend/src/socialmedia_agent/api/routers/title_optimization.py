@@ -50,7 +50,9 @@ def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimiza
         if not content:
             raise HTTPException(status_code=404, detail="content not found")
 
-    registry = build_registry(database)
+    registry = build_registry(
+        database, retriever=getattr(request.app.state, "retriever", None)
+    )
     facts = title_capability.gather(registry, content_id=req.content_id, title=req.title)
     optimization = title_capability.analyze(getattr(request.app.state, "gateway", None), facts)
     return TitleOptimizationResponse(

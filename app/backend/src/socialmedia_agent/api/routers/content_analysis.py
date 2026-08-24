@@ -12,9 +12,7 @@ from pydantic import BaseModel
 
 from socialmedia_agent.agents.content_analysis.graph import build_content_analysis_graph
 from socialmedia_agent.agents.content_analysis.schemas import ContentAnalysisOutput
-from socialmedia_agent.agents.tools.base import ToolContext
-from socialmedia_agent.agents.tools.catalog import build_core_tools
-from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.content_repo import ContentRepository
 
@@ -40,10 +38,9 @@ def analyze_content(content_id: str, request: Request) -> ContentAnalysisRespons
     if not content:
         raise HTTPException(status_code=404, detail="content not found")
 
-    ctx = ToolContext(database=database)
-    registry = ToolRegistry()
-    for tool in build_core_tools(ctx):
-        registry.register(tool)
+    registry = build_registry(
+        database, retriever=getattr(request.app.state, "retriever", None)
+    )
 
     graph = build_content_analysis_graph(
         registry, gateway=getattr(request.app.state, "gateway", None)

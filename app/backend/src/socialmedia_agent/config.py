@@ -59,6 +59,14 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="deepseek-chat", alias="LLM_MODEL")
     llm_timeout: float = Field(default=60.0, alias="LLM_TIMEOUT")
 
+    # RAG 知识库（P5.5.4）
+    knowledge_store_path: str = Field(
+        default=str(BACKEND_DIR / "data" / "knowledge" / "knowledge.index"),
+        alias="SMA_KNOWLEDGE_STORE",
+    )
+    # 嵌入模型；未配置或未设 LLM_API_KEY 时回退 HashEmbedder（确定性，无外部依赖）
+    embedding_model: str | None = Field(default=None, alias="SMA_EMBEDDING_MODEL")
+
 
 @lru_cache
 def get_settings() -> Settings:

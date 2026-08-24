@@ -43,6 +43,7 @@ def diagnose_account(account_id: str, request: Request) -> DiagnosisResponse:
 
     registry = build_registry(
         database,
+        retriever=getattr(request.app.state, "retriever", None),
         memory_store=get_memory_store(request),
         summarizer=Summarizer(),
     )

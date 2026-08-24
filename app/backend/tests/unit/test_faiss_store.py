@@ -102,3 +102,30 @@ def test_retriever_topk_respects_order(store, embedder):
     assert len(hits) == 2
     assert hits[0].id == "a"
     assert hits[1].score <= hits[0].score
+
+
+def test_save_load_roundtrip(tmp_path, embedder):
+    """持久化：save 后 load 能恢复向量与 payload，召回结果一致。"""
+    store = FaissVectorStore()
+    store.add(
+        embedder.embed_texts(["B站标题写作方法"]),
+        [{"title": "标题写作", "content": "B站标题写作方法"}],
+        ids=["k1"],
+    )
+    path = tmp_path / "knowledge.index"
+    store.save(path)
+
+    loaded = FaissVectorStore.load(path)
+    assert loaded.count() == 1
+    retriever = Retriever(embedder=embedder, store=loaded)
+    hits = retriever.retrieve("B站标题", top_k=1)
+    assert hits[0].id == "k1"
+    assert hits[0].payload["title"] == "标题写作"
+
+
+def test_save_empty_store_roundtrip(tmp_path):
+    store = FaissVectorStore()
+    path = tmp_path / "empty.index"
+    store.save(path)
+    loaded = FaissVectorStore.load(path)
+    assert loaded.count() == 0

@@ -1,10 +1,14 @@
 """FAISS 向量库实现（P2，Phase1 VectorStore 实现）。
 
 用归一化向量 + IndexFlatIP（内积即余弦相似度），支持 add/search/delete/count。
+P5.5.4 增加 save/load 持久化（FAISS index + JSON 副作用文件），支撑知识库种子落盘。
 业务层只依赖 VectorStore 接口；后续可替换 sqlite-vec / Qdrant。
 """
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 import numpy as np
 
@@ -104,3 +108,33 @@ class FaissVectorStore(VectorStore):
 
     def count(self) -> int:
         return len(self._ids)
+
+    def save(self, path: str | Path) -> None:
+        """持久化到 FAISS index + JSON 副作用文件（.index + .json）。"""
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        self._faiss.write_index(self._index, str(p))
+        sidecar = {
+            "ids": self._ids,
+            "payloads": self._payloads,
+            "vectors": getattr(self, "_vectors_by_id", {}),
+            "seq": self._seq,
+        }
+        (p.with_suffix(".json")).write_text(json.dumps(sidecar), encoding="utf-8")
+
+    @classmethod
+    def load(cls, path: str | Path) -> "FaissVectorStore":
+        """从 FAISS index + JSON 副作用文件恢复。"""
+        import faiss
+
+        p = Path(path)
+        store = cls.__new__(cls)
+        store._faiss = faiss
+        store._index = faiss.read_index(str(p))
+        store._dim = store._index.d
+        data = json.loads((p.with_suffix(".json")).read_text(encoding="utf-8"))
+        store._ids = data["ids"]
+        store._payloads = data["payloads"]
+        store._vectors_by_id = data.get("vectors", {})
+        store._seq = data.get("seq", 0)
+        return store

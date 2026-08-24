@@ -1,8 +1,8 @@
 """FastAPI 应用工厂。
 
-create_app(database, memory_store, gateway) 支持注入测试依赖；
-gateway 默认 None（规则兜底），生产入口显式构建（见文件尾部）。
-模块级 app 使用默认数据库 + 配置构建的 gateway。
+create_app(database, memory_store, gateway, retriever) 支持注入测试依赖；
+gateway / retriever 默认 None（规则兜底 / 空知识库），生产入口显式构建（见文件尾部）。
+模块级 app 使用默认数据库 + 配置构建的 gateway / 知识库 retriever。
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.factory import build_gateway
 from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
+from socialmedia_agent.rag.knowledge import build_knowledge_retriever
+from socialmedia_agent.rag.retriever import Retriever
 
 from .routers import (
     accounts,
@@ -33,6 +35,7 @@ def create_app(
     database: Database | None = None,
     memory_store: SQLAlchemyMemoryStore | None = None,
     gateway: LLMGateway | None = None,
+    retriever: Retriever | None = None,
 ) -> FastAPI:
     db = database or Database()
 
@@ -46,6 +49,7 @@ def create_app(
     app.state.database = db
     app.state.memory_store = memory_store
     app.state.gateway = gateway
+    app.state.retriever = retriever
 
     app.include_router(accounts.router, prefix="/api/v1")
     app.include_router(contents.router, prefix="/api/v1")
@@ -59,4 +63,4 @@ def create_app(
     return app
 
 
-app = create_app(gateway=build_gateway())
+app = create_app(gateway=build_gateway(), retriever=build_knowledge_retriever())

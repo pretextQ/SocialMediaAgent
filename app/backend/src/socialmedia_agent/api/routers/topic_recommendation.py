@@ -37,7 +37,9 @@ def recommend_topics(account_id: str, request: Request) -> TopicRecommendationRe
     if not account:
         raise HTTPException(status_code=404, detail="account not found")
 
-    registry = build_registry(database)
+    registry = build_registry(
+        database, retriever=getattr(request.app.state, "retriever", None)
+    )
     facts = topic_capability.gather(registry, account_id)
     recommendation = topic_capability.analyze(getattr(request.app.state, "gateway", None), facts)
     return TopicRecommendationResponse(
