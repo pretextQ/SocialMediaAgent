@@ -34,8 +34,10 @@ def gather(registry: ToolRegistry, account_id: str) -> dict:
     }
 
 
-def analyze(gateway: LLMGateway, facts: dict) -> DiagnosisOutput:
-    """LLM 结构化输出；失败时规则兜底。"""
+def analyze(gateway: LLMGateway | None, facts: dict) -> DiagnosisOutput:
+    """LLM 结构化输出；失败或未配置 gateway 时规则兜底。"""
+    if gateway is None:
+        return _rule_fallback(facts)
     prompt = SYSTEM_PROMPT
     text = build_facts_prompt(facts)
     result = gateway.call(prompt, text, response_format="json", response_model=DiagnosisOutput)

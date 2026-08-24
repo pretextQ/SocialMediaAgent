@@ -24,7 +24,8 @@
 | Repository 模式 | `data/repositories/BaseRepository.ts` | 参考 | 已采用 | P0.5 已实现同构 |
 | 任务状态机 + 最小堆队列 | `core/TaskScheduler.ts`、`core/QueueManager.ts` | 参考 | P5 Scheduler | 8 态 + 持久化恢复思路 |
 | RateLimiter 并发+滑窗 | `core/RateLimiter.ts: acquire()/getWaitTime()` | 参考 | P1 采集限流 | 按平台粒度 |
-| AI 规则兜底 | `ai/AIService.ts: ruleBasedPrePublishCheck()` | 参考 | P3 | LLM 失败降级确定性规则 |
+| AI 规则兜底 | `ai/AIService.ts: ruleBasedPrePublishCheck()` | 参考 | P3 | LLM 失败降级确定性规则（ADR-0003 已确认：规则兜底实现） |
+| 异常检测 | `services/AnomalyService.ts`（report/getActiveAlerts）、`ai/AIService.ts: detectAnomaly()`（:250 映射表） | 不采用（逻辑重新实现） | P3 | 纯 severity/action 映射、不计算指标；改由 LLM 基于 DB 事实识别 + 规则兜底（ADR-0003 已确认） |
 | LLM 多提供商 + 降级 | `ai/LLMService.ts: call()/callProvider()` | 重新实现 | P2 llm_gateway | 无 JSON 模式/熔断/重试；`fallbackToRules` 分支有 bug |
 | Stats 分层聚合 | `services/StatsService.ts`（fetchVideoStats/fetchPlatformStats/getOverviewStats） | 重新实现 | P1/P3 | 在统一模型+数值化指标上重写 |
 | MCP 工具命名与校验 | `mcp-server/index.ts`（18 tools、handleToolCall） | 参考 | P5 | 命名/校验模式参考，不复制 bridge 直连 SQLite |

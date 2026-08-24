@@ -348,10 +348,14 @@ Memory：写入=每次诊断/策略执行后沉淀账号特征；读取=Agent �
   "anomalies": [], "recommendations": [] }
 ```
 
-- 同时产出人类可读报告
-- 用 P1 真实数据端到端演示
-- 输出 schema 有回归测试
-- **Agent 引用的统计数字与 DB 可核验**（为 P6 铺垫）
+- [x] 同时产出人类可读报告（`render_report` 规则渲染 markdown）
+- [ ] 用 P1 真实数据端到端演示（待 crawler venv + 真机数据；已具备 `POST /api/v1/accounts/{id}/diagnosis` + fixture 数据端到端）
+- [x] 输出 schema 有回归测试（`tests/agent/test_account_diagnosis.py::test_diagnosis_output_schema_strict` + `test_diagnosis_end_to_end`）
+- [x] **Agent 引用的统计数字与 DB 可核验**（facts 注入 LLM prompt，`test_statistics_injected_into_prompt` 断言 total_views=1500；为 P6 铺垫）
+
+> **状态（2026-08-24 记录）**：P3 Account Diagnosis Agent 已完成并提交（`agents/account_diagnosis/`，ADR-0003）。
+> 端到端入口：`POST /api/v1/accounts/{account_id}/diagnosis`（gateway=None 时走确定性规则兜底，无需 LLM 密钥即可演示；注入 LLMGateway 后启用 LLM 分析）。
+> **唯一待办**：P1 真机数据端到端演示（依赖 crawler venv，与 P1.11/1.12 一起阻塞）。全量 `pytest` 159 passed。
 
 ### P4
 

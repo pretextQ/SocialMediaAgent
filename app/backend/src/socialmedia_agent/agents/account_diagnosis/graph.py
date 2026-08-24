@@ -22,7 +22,7 @@ class DiagnosisState(TypedDict, total=False):
     report: str
 
 
-def build_diagnosis_graph(registry: ToolRegistry, gateway: LLMGateway):
+def build_diagnosis_graph(registry: ToolRegistry, gateway: LLMGateway | None = None):
     def node_gather(state: DiagnosisState) -> dict[str, Any]:
         facts = gather(registry, state["account_id"])
         return {"facts": facts}
