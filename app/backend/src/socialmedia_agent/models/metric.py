@@ -6,10 +6,10 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
+from sqlalchemy import ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from socialmedia_agent.database.base import Base
+from socialmedia_agent.database.base import UTCDateTime, Base
 from socialmedia_agent.domain.enums import MetricSource, MetricType, Platform
 from socialmedia_agent.domain.metric import Metric as MetricDomain
 
@@ -27,7 +27,7 @@ class MetricModel(Base):
     platform: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     metric_type: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     value: Mapped[Decimal] = mapped_column(Numeric(20, 4), nullable=False)
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    captured_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, index=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     raw_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
 

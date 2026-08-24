@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from socialmedia_agent.database.base import Base
+from socialmedia_agent.database.base import UTCDateTime, Base
 from socialmedia_agent.domain.comment import Comment as CommentDomain
 from socialmedia_agent.domain.enums import Platform
 
@@ -26,7 +26,7 @@ class CommentModel(Base):
     author_nickname: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content: Mapped[str | None] = mapped_column(nullable=True)
     like_count: Mapped[int | None] = mapped_column(nullable=True)
-    publish_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    publish_time: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
 
     @classmethod
     def from_domain(cls, comment: CommentDomain) -> "CommentModel":

@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from socialmedia_agent.database.base import Base
+from socialmedia_agent.database.base import UTCDateTime, Base
 from socialmedia_agent.domain.enums import Platform
 from socialmedia_agent.domain.topic import Topic as TopicDomain
 
@@ -20,8 +20,8 @@ class TopicModel(Base):
     keyword: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     platforms: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
-    first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    first_seen: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    last_seen: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     post_count: Mapped[int] = mapped_column(nullable=False, default=0)
     summary: Mapped[str | None] = mapped_column(nullable=True)
     sentiment: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

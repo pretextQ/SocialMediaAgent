@@ -5,10 +5,10 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from socialmedia_agent.database.base import Base
+from socialmedia_agent.database.base import UTCDateTime, Base
 from socialmedia_agent.domain.content import Content as ContentDomain
 from socialmedia_agent.domain.enums import ContentType, Platform
 
@@ -26,7 +26,7 @@ class ContentModel(Base):
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
     content: Mapped[str | None] = mapped_column(nullable=True)
     content_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    publish_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    publish_time: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     raw_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
