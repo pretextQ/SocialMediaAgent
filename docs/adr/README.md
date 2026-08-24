@@ -5,6 +5,7 @@
 > 本表为 P0.9 初稿（基于 `docs/source-analysis.md` 的已核验源码事实）。
 > **结论以各阶段正式 ADR 为准**，本表仅作预判与检索入口。
 > **P4 补充（2026-08-24）**：趋势分析 / 选题推荐在 P4 为**新增实现**（基于自建 Topic 数据层与 RAG，见 `agents/trend_analysis/`、`agents/topic_recommendation/`），MatrixFlow 无对应模块，不涉及移植候选，无需额外 ADR。
+> **P5 补充（2026-08-24）**：自有账号数据接入经 **ADR-0004** 决策——浏览器自动化路径（登录态/发布/反检测）不采用；自有账号只读数据以平台官方能力优先 + Python 重写适配器，纳入 `PlatformConnector` 边界（`connectors/matrixflow_ref/`），发布写操作另行评估。
 
 ## 决策口径
 
@@ -32,10 +33,10 @@
 | MCP 工具命名与校验 | `mcp-server/index.ts`（18 tools、handleToolCall） | 参考 | P5 | 命名/校验模式参考，不复制 bridge 直连 SQLite |
 | AICache | `ai/AICache.ts`（内存 Map + 按 hits 淘汰） | 不采用 | - | 实为 LFU、注释与实现不符、无持久化 |
 | Electron 层 | `electron/main.ts`、`preload.ts`、`ipc/handlers.ts` | 不采用 | - | 桌面壳强耦合 |
-| 浏览器自动化发布/反检测 | 各平台 `login/upload/publish`、`embedded-browser/stealth-engine.ts` | 不采用 | - | ToS/合规风险；Python 侧需另做评估 |
+| 浏览器自动化发布/反检测 | 各平台 `login/upload/publish`、`embedded-browser/stealth-engine.ts` | 不采用（已确认，ADR-0004） | - | ToS/合规风险；Python 侧需另做评估 |
 | License 体系 | `services/LicenseService.ts`、`core/SignatureVerifier.ts` | 不采用 | - | 商业授权模型 |
 | Sentry | `core/SentryInit.ts` | 不采用 | - | 需 DSN/账号 |
-| 机器指纹加密 + 明文 Cookie | `core/CryptoService.ts: deriveKey()`、`services/session-manager.ts: writeStorageState()` | 不采用 | - | 声称加密与实现不符 |
+| 机器指纹加密 + 明文 Cookie | `core/CryptoService.ts: deriveKey()`、`services/session-manager.ts: writeStorageState()` | 不采用（已确认，ADR-0004） | - | 声称加密与实现不符 |
 | 废弃目录 | `electron/browser/`、`electron/scheduler/`、`src/douyin/`、`src/stores/` | 不采用 | - | 官方明令禁用 |
 
 ## 二、MediaCrawler 模块三线表（初判）
