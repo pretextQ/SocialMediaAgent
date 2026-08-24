@@ -8,8 +8,10 @@ POST /api/v1/accounts/{account_id}/diagnosis
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 from socialmedia_agent.agents.account_diagnosis.graph import build_diagnosis_graph
+from socialmedia_agent.agents.account_diagnosis.schemas import DiagnosisOutput
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
@@ -19,8 +21,18 @@ from socialmedia_agent.repositories.account_repo import AccountRepository
 router = APIRouter(prefix="/accounts", tags=["diagnosis"])
 
 
-@router.post("/{account_id}/diagnosis")
-def diagnose_account(account_id: str, request: Request) -> dict:
+class DiagnosisResponse(BaseModel):
+    diagnosis: DiagnosisOutput
+    report: str
+
+
+@router.post(
+    "/{account_id}/diagnosis",
+    response_model=DiagnosisResponse,
+    summary="账号健康诊断",
+    description="运行 Account Diagnosis Agent（gather → analyze → report），返回结构化诊断 + 人类可读报告。gateway 未配置时走规则兜底。",
+)
+def diagnose_account(account_id: str, request: Request) -> DiagnosisResponse:
     database: Database = request.app.state.database
 
     with database.session() as session:
@@ -35,4 +47,4 @@ def diagnose_account(account_id: str, request: Request) -> dict:
 
     graph = build_diagnosis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
     state = graph.invoke({"account_id": account_id})
-    return {"diagnosis": state["diagnosis"].model_dump(), "report": state["report"]}
+    return DiagnosisResponse(diagnosis=state["diagnosis"], report=state["report"])

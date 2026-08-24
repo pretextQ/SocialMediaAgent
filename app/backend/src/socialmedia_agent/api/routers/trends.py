@@ -14,6 +14,7 @@ from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
+from socialmedia_agent.agents.trend_analysis.schemas import TrendAnalysisOutput
 from socialmedia_agent.database.session import Database
 
 router = APIRouter(prefix="/trends", tags=["trend_analysis"])
@@ -24,8 +25,18 @@ class TrendRequest(BaseModel):
     period: int = Field(default=7, ge=1, le=90)
 
 
-@router.post("/analysis")
-def analyze_trends(req: TrendRequest, request: Request) -> dict:
+class TrendAnalysisResponse(BaseModel):
+    analysis: TrendAnalysisOutput
+    report: str
+
+
+@router.post(
+    "/analysis",
+    response_model=TrendAnalysisResponse,
+    summary="平台趋势分析",
+    description="运行 Trend Analysis Agent，返回周期内趋势话题（DB 事实）/趋势评分/洞察 + 人类可读报告。gateway 未配置时走规则兜底。",
+)
+def analyze_trends(req: TrendRequest, request: Request) -> TrendAnalysisResponse:
     database: Database = request.app.state.database
 
     ctx = ToolContext(database=database)
@@ -35,4 +46,4 @@ def analyze_trends(req: TrendRequest, request: Request) -> dict:
 
     graph = build_trend_analysis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
     state = graph.invoke({"platform": req.platform, "period": req.period})
-    return {"analysis": state["analysis"].model_dump(), "report": state["report"]}
+    return TrendAnalysisResponse(analysis=state["analysis"], report=state["report"])

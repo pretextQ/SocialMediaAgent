@@ -8,8 +8,10 @@ POST /api/v1/contents/{content_id}/analysis
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 from socialmedia_agent.agents.content_analysis.graph import build_content_analysis_graph
+from socialmedia_agent.agents.content_analysis.schemas import ContentAnalysisOutput
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
@@ -19,8 +21,18 @@ from socialmedia_agent.repositories.content_repo import ContentRepository
 router = APIRouter(prefix="/contents", tags=["content_analysis"])
 
 
-@router.post("/{content_id}/analysis")
-def analyze_content(content_id: str, request: Request) -> dict:
+class ContentAnalysisResponse(BaseModel):
+    analysis: ContentAnalysisOutput
+    report: str
+
+
+@router.post(
+    "/{content_id}/analysis",
+    response_model=ContentAnalysisResponse,
+    summary="单条内容质量分析",
+    description="运行 Content Analysis Agent，返回质量评分/优势/不足/建议 + 人类可读报告。gateway 未配置时走规则兜底。",
+)
+def analyze_content(content_id: str, request: Request) -> ContentAnalysisResponse:
     database: Database = request.app.state.database
 
     with database.session() as session:
@@ -35,4 +47,4 @@ def analyze_content(content_id: str, request: Request) -> dict:
 
     graph = build_content_analysis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
     state = graph.invoke({"content_id": content_id})
-    return {"analysis": state["analysis"].model_dump(), "report": state["report"]}
+    return ContentAnalysisResponse(analysis=state["analysis"], report=state["report"])

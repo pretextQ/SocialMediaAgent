@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, model_validator
 
 from socialmedia_agent.agents.title_optimization.graph import build_title_optimization_graph
+from socialmedia_agent.agents.title_optimization.schemas import TitleOptimizationOutput
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
@@ -32,8 +33,18 @@ class TitleOptimizeRequest(BaseModel):
         return self
 
 
-@router.post("/optimize")
-def optimize_title(req: TitleOptimizeRequest, request: Request) -> dict:
+class TitleOptimizationResponse(BaseModel):
+    optimization: TitleOptimizationOutput
+    report: str
+
+
+@router.post(
+    "/optimize",
+    response_model=TitleOptimizationResponse,
+    summary="标题优化",
+    description="运行 Title Optimization Agent（content_id 或原始标题两种模式），返回固定 3 条优化标题 + 说明 + 人类可读报告。gateway 未配置时走规则兜底。",
+)
+def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimizationResponse:
     database: Database = request.app.state.database
 
     if req.content_id:
@@ -49,4 +60,4 @@ def optimize_title(req: TitleOptimizeRequest, request: Request) -> dict:
 
     graph = build_title_optimization_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
     state = graph.invoke({"content_id": req.content_id, "title": req.title})
-    return {"optimization": state["optimization"].model_dump(), "report": state["report"]}
+    return TitleOptimizationResponse(optimization=state["optimization"], report=state["report"])

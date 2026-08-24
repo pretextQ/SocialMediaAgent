@@ -8,19 +8,31 @@ POST /api/v1/accounts/{account_id}/topic-recommendation
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.topic_recommendation.graph import build_topic_recommendation_graph
+from socialmedia_agent.agents.topic_recommendation.schemas import TopicRecommendationOutput
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.account_repo import AccountRepository
 
 router = APIRouter(prefix="/accounts", tags=["topic_recommendation"])
 
 
-@router.post("/{account_id}/topic-recommendation")
-def recommend_topics(account_id: str, request: Request) -> dict:
+class TopicRecommendationResponse(BaseModel):
+    recommendation: TopicRecommendationOutput
+    report: str
+
+
+@router.post(
+    "/{account_id}/topic-recommendation",
+    response_model=TopicRecommendationResponse,
+    summary="选题推荐",
+    description="运行 Topic Recommendation Agent，返回推荐选题（趋势候选/知识库，去重已有内容）+ 人类可读报告。gateway 未配置时走规则兜底。",
+)
+def recommend_topics(account_id: str, request: Request) -> TopicRecommendationResponse:
     database: Database = request.app.state.database
 
     with database.session() as session:
@@ -35,4 +47,6 @@ def recommend_topics(account_id: str, request: Request) -> dict:
 
     graph = build_topic_recommendation_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
     state = graph.invoke({"account_id": account_id})
-    return {"recommendation": state["recommendation"].model_dump(), "report": state["report"]}
+    return TopicRecommendationResponse(
+        recommendation=state["recommendation"], report=state["report"]
+    )
