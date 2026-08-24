@@ -30,3 +30,20 @@ class ContentType(str, Enum):
     IMAGE = "image"
     ARTICLE = "article"
     NOTE = "note"
+
+
+class MetricType(str, Enum):
+    VIEWS = "views"
+    LIKES = "likes"
+    COMMENTS = "comments"
+    SHARES = "shares"
+    FAVORITES = "favorites"
+
+
+class MetricSource(str, Enum):
+    """指标数据来源（用于审计与可追溯）。"""
+
+    MEDIACRAWLER = "mediacrawler"
+    MATRIXFLOW = "matrixflow"
+    OFFICIAL_API = "official_api"
+    MANUAL = "manual"
