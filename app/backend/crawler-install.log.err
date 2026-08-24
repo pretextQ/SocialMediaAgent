@@ -1,5 +1,0 @@
-Using Python 3.12.14 environment at: .venv-crawler
-error: Request failed after 4 retries in 128.8s
-  Caused by: Failed to fetch: `https://pypi.org/simple/urllib3/`
-  Caused by: error sending request for url (https://pypi.org/simple/urllib3/)
-  Caused by: operation timed out

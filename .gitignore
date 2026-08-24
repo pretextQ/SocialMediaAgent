@@ -20,6 +20,13 @@ dist-electron/
 *.log
 logs/
 
+# MediaCrawler 运行时产物（运行采集时写入 third_party 内的中转/登录态目录）
+browser_data/
+
+# 本地安装日志
+crawler-install.log
+crawler-install.log.err
+
 # Environment
 .env
 .env.*
