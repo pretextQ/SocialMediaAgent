@@ -13,6 +13,8 @@ from mcp.server.fastmcp import FastMCP
 
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
+from socialmedia_agent.llm.factory import build_gateway
+from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore, build_memory_store
 from socialmedia_agent.memory.summarizer import Summarizer
 from socialmedia_agent.services import mcp_tools
@@ -21,6 +23,7 @@ from socialmedia_agent.services import mcp_tools
 def create_mcp_server(
     database: Database | None = None,
     memory_store: SQLAlchemyMemoryStore | None = None,
+    gateway: LLMGateway | None = None,
 ) -> FastMCP:
     db = database or Database()
     mem = memory_store or build_memory_store()
@@ -31,27 +34,27 @@ def create_mcp_server(
     @mcp.tool()
     def account_strategy(account_id: str) -> dict:
         """账号健康诊断与运营策略：健康度、优势/不足/异常/建议、策略摘要、周计划、KPI、风险，并沉淀到 Memory。"""
-        return mcp_tools.run_account_strategy(registry, account_id)
+        return mcp_tools.run_account_strategy(registry, account_id, gateway)
 
     @mcp.tool()
     def analyze_content(content_id: str) -> dict:
         """单条内容质量分析：质量评分、优势、不足、建议。"""
-        return mcp_tools.run_analyze_content(registry, content_id)
+        return mcp_tools.run_analyze_content(registry, content_id, gateway)
 
     @mcp.tool()
     def analyze_trends(platform: str, period: int = 7) -> dict:
         """平台周期内趋势分析：热门话题、趋势评分与洞察。"""
-        return mcp_tools.run_analyze_trends(registry, platform, period)
+        return mcp_tools.run_analyze_trends(registry, platform, period, gateway)
 
     @mcp.tool()
     def recommend_topics(account_id: str) -> dict:
         """为账号推荐选题（自动去重已有内容）。"""
-        return mcp_tools.run_recommend_topics(registry, account_id)
+        return mcp_tools.run_recommend_topics(registry, account_id, gateway)
 
     @mcp.tool()
     def optimize_title(content_id: str | None = None, title: str | None = None) -> dict:
         """标题优化：content_id 或原始标题，返回固定 3 条优化标题与说明。"""
-        return mcp_tools.run_optimize_title(registry, content_id, title)
+        return mcp_tools.run_optimize_title(registry, content_id, title, gateway)
 
     @mcp.tool()
     def list_accounts(platform: str | None = None) -> list[dict]:
@@ -68,7 +71,7 @@ def create_mcp_server(
 
 def run_mcp_stdio() -> None:
     """stdio 传输入口：`python -m socialmedia_agent.services.mcp_server`。"""
-    create_mcp_server().run(transport="stdio")
+    create_mcp_server(gateway=build_gateway()).run(transport="stdio")
 
 
 if __name__ == "__main__":

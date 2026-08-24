@@ -47,7 +47,9 @@ def advise_strategy(account_id: str, request: Request) -> StrategyAdvisorRespons
         memory_store=get_memory_store(request),
         summarizer=Summarizer(),
     )
-    graph = build_account_strategy_graph(registry, gateway=None)  # 规则兜底；LLM 注入见 P5.5.3
+    graph = build_account_strategy_graph(
+        registry, gateway=getattr(request.app.state, "gateway", None)
+    )
     state = graph.invoke({"account_id": account_id})
     return StrategyAdvisorResponse(
         strategy=state["strategy"],

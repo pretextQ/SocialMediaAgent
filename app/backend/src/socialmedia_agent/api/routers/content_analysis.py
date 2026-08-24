@@ -45,6 +45,8 @@ def analyze_content(content_id: str, request: Request) -> ContentAnalysisRespons
     for tool in build_core_tools(ctx):
         registry.register(tool)
 
-    graph = build_content_analysis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
+    graph = build_content_analysis_graph(
+        registry, gateway=getattr(request.app.state, "gateway", None)
+    )
     state = graph.invoke({"content_id": content_id})
     return ContentAnalysisResponse(analysis=state["analysis"], report=state["report"])

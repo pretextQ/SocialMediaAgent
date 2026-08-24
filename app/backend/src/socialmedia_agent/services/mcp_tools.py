@@ -14,12 +14,15 @@ from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.topic_recommendation import nodes as topic_capability
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
 from socialmedia_agent.database.session import Database
+from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 
 
-def run_account_strategy(registry: ToolRegistry, account_id: str) -> dict:
-    state = build_account_strategy_graph(registry, None).invoke({"account_id": account_id})
+def run_account_strategy(
+    registry: ToolRegistry, account_id: str, gateway: LLMGateway | None = None
+) -> dict:
+    state = build_account_strategy_graph(registry, gateway).invoke({"account_id": account_id})
     return {
         "strategy": state["strategy"].model_dump(),
         "memory_saved": state.get("memory_saved"),
@@ -27,21 +30,30 @@ def run_account_strategy(registry: ToolRegistry, account_id: str) -> dict:
     }
 
 
-def run_analyze_content(registry: ToolRegistry, content_id: str) -> dict:
-    state = build_content_analysis_graph(registry, None).invoke({"content_id": content_id})
+def run_analyze_content(
+    registry: ToolRegistry, content_id: str, gateway: LLMGateway | None = None
+) -> dict:
+    state = build_content_analysis_graph(registry, gateway).invoke({"content_id": content_id})
     return {"analysis": state["analysis"].model_dump(), "report": state["report"]}
 
 
-def run_analyze_trends(registry: ToolRegistry, platform: str, period: int = 7) -> dict:
-    state = build_trend_analysis_graph(registry, None).invoke(
+def run_analyze_trends(
+    registry: ToolRegistry,
+    platform: str,
+    period: int = 7,
+    gateway: LLMGateway | None = None,
+) -> dict:
+    state = build_trend_analysis_graph(registry, gateway).invoke(
         {"platform": platform, "period": period}
     )
     return {"analysis": state["analysis"].model_dump(), "report": state["report"]}
 
 
-def run_recommend_topics(registry: ToolRegistry, account_id: str) -> dict:
+def run_recommend_topics(
+    registry: ToolRegistry, account_id: str, gateway: LLMGateway | None = None
+) -> dict:
     facts = topic_capability.gather(registry, account_id)
-    recommendation = topic_capability.analyze(None, facts)
+    recommendation = topic_capability.analyze(gateway, facts)
     return {
         "recommendation": recommendation.model_dump(),
         "report": topic_capability.render_report(recommendation, facts),
@@ -52,11 +64,12 @@ def run_optimize_title(
     registry: ToolRegistry,
     content_id: str | None = None,
     title: str | None = None,
+    gateway: LLMGateway | None = None,
 ) -> dict:
     if not content_id and not title:
         raise ValueError("content_id 与 title 至少提供一个")
     facts = title_capability.gather(registry, content_id=content_id, title=title)
-    optimization = title_capability.analyze(None, facts)
+    optimization = title_capability.analyze(gateway, facts)
     return {
         "optimization": optimization.model_dump(),
         "report": title_capability.render_report(optimization, facts),

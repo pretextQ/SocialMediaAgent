@@ -44,6 +44,8 @@ def analyze_trends(req: TrendRequest, request: Request) -> TrendAnalysisResponse
     for tool in build_core_tools(ctx):
         registry.register(tool)
 
-    graph = build_trend_analysis_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
+    graph = build_trend_analysis_graph(
+        registry, gateway=getattr(request.app.state, "gateway", None)
+    )
     state = graph.invoke({"platform": req.platform, "period": req.period})
     return TrendAnalysisResponse(analysis=state["analysis"], report=state["report"])

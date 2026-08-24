@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,  # 允许 Settings(llm_api_key=...) 字段名与 env 别名 LLM_API_KEY 两用
     )
 
     # 核心库（SQLite）

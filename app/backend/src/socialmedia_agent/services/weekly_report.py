@@ -15,6 +15,7 @@ from pathlib import Path
 from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
+from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.memory.summarizer import Summarizer
 from socialmedia_agent.repositories.account_repo import AccountRepository
@@ -33,8 +34,9 @@ def build_weekly_report(
     memory_store: SQLAlchemyMemoryStore | None,
     account_id: str,
     days: int = 7,
+    gateway: LLMGateway | None = None,
 ) -> dict:
-    """聚合账号近 days 天表现并复用诊断/策略 Agent，返回结构化周报摘要。"""
+    """聚合账号近 days 天表现并复用 Account Strategy Agent，返回结构化周报摘要。"""
     reg = _registry(database, memory_store)
     profile = reg.invoke("get_account_profile", account_id=account_id) or {}
     recent = reg.invoke("get_recent_contents", account_id=account_id, limit=50)
@@ -55,7 +57,7 @@ def build_weekly_report(
             if m.get("metric_type") == "views":
                 weekly_views += Decimal(m.get("value", "0"))
 
-    merged = build_account_strategy_graph(reg, None).invoke({"account_id": account_id})
+    merged = build_account_strategy_graph(reg, gateway).invoke({"account_id": account_id})
 
     count = len(weekly)
     return {
@@ -98,6 +100,7 @@ def generate_all_weekly_reports(
     memory_store: SQLAlchemyMemoryStore | None,
     report_dir: str,
     days: int = 7,
+    gateway: LLMGateway | None = None,
 ) -> list[str]:
     """为全部账号生成周报并写入 report_dir，返回写入文件路径列表。"""
     Path(report_dir).mkdir(parents=True, exist_ok=True)
@@ -107,7 +110,7 @@ def generate_all_weekly_reports(
 
     written: list[str] = []
     for account_id in account_ids:
-        summary = build_weekly_report(database, memory_store, account_id, days)
+        summary = build_weekly_report(database, memory_store, account_id, days, gateway)
         filename = f"weekly_{account_id.replace(':', '_')}_{summary['week_end']}.md"
         path = Path(report_dir) / filename
         path.write_text(render_weekly_report(summary), encoding="utf-8")

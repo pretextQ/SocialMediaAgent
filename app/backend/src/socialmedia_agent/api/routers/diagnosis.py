@@ -46,7 +46,9 @@ def diagnose_account(account_id: str, request: Request) -> DiagnosisResponse:
         memory_store=get_memory_store(request),
         summarizer=Summarizer(),
     )
-    graph = build_account_strategy_graph(registry, gateway=None)  # 规则兜底；LLM 注入见 P5.5.3
+    graph = build_account_strategy_graph(
+        registry, gateway=getattr(request.app.state, "gateway", None)
+    )
     state = graph.invoke({"account_id": account_id})
     return DiagnosisResponse(
         diagnosis=state["strategy"].to_diagnosis(),
