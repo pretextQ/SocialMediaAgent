@@ -13,17 +13,46 @@ from socialmedia_agent.agents.tools.registry import ToolRegistry
 def make_context(tmp_path):
     from socialmedia_agent.database.session import Database
     from socialmedia_agent.domain.account import Account
-    from socialmedia_agent.domain.enums import Platform
+    from socialmedia_agent.domain.content import Content
+    from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
+    from socialmedia_agent.domain.metric import Metric
+    from socialmedia_agent.domain.topic import Topic
     from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
     from socialmedia_agent.memory.summarizer import Summarizer
     from socialmedia_agent.rag import HashEmbedder, InMemoryVectorStore, Retriever
     from socialmedia_agent.repositories.account_repo import AccountRepository
+    from socialmedia_agent.repositories.content_repo import ContentRepository
+    from socialmedia_agent.repositories.metric_repo import MetricRepository
+    from socialmedia_agent.repositories.topic_repo import TopicRepository
 
     db = Database(url=f"sqlite:///{tmp_path / 'graph.db'}")
     db.create_all()
     with db.session() as session:
         AccountRepository(session).upsert(
             Account(platform=Platform.BILIBILI, platform_id="90001", nickname="UP主A")
+        )
+        c = ContentRepository(session).upsert(
+            Content(
+                platform=Platform.BILIBILI,
+                platform_content_id="1001",
+                account_id="bilibili:90001",
+                title="人工智能入门",
+                content_type=ContentType.VIDEO,
+            )
+        )
+        MetricRepository(session).upsert(
+            Metric(
+                content_id=c.canonical_id,
+                account_id="bilibili:90001",
+                platform=Platform.BILIBILI,
+                metric_type=MetricType.VIEWS,
+                value="1000",
+                captured_at="2026-08-24T10:00:00Z",
+                source=MetricSource.MEDIACRAWLER,
+            )
+        )
+        TopicRepository(session).upsert(
+            Topic(keyword="效率工具测评", platforms=[Platform.BILIBILI], post_count=50)
         )
 
     store = InMemoryVectorStore()
@@ -111,3 +140,61 @@ def test_minimal_graph_save_and_read_memory(tmp_path):
     )
     assert s2["tool_calls"] == ["get_historical_strategy"]
     assert any("每周五发布长视频" in c for c in s2["result"]["strategy"])
+
+
+def test_minimal_graph_routes_content_analysis_agent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "分析内容质量 bilibili:1001")
+    assert state["tool_calls"] == ["agent:content_analysis"]
+    result = state["result"]
+    assert result["agent"] == "content_analysis"
+    assert result["content_id"] == "bilibili:1001"
+    assert 0 <= result["analysis"]["quality_score"] <= 100
+    assert result["report"]
+
+
+def test_minimal_graph_routes_trend_analysis_agent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "bilibili 平台近 7 天趋势分析")
+    assert state["tool_calls"] == ["agent:trend_analysis"]
+    result = state["result"]
+    assert result["agent"] == "trend_analysis"
+    assert result["platform"] == "bilibili"
+    assert 0 <= result["analysis"]["trend_score"] <= 100
+
+
+def test_minimal_graph_routes_topic_recommendation_agent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "为 bilibili:90001 推荐选题")
+    assert state["tool_calls"] == ["agent:topic_recommendation"]
+    result = state["result"]
+    assert result["account_id"] == "bilibili:90001"
+    assert isinstance(result["recommendation"]["topics"], list)
+    assert result["report"]
+
+
+def test_minimal_graph_routes_title_optimization_agent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "优化 bilibili:1001 的标题")
+    assert state["tool_calls"] == ["agent:title_optimization"]
+    result = state["result"]
+    assert result["content_id"] == "bilibili:1001"
+    assert len(result["optimization"]["optimized_titles"]) == 3
+    assert result["report"]
+
+
+def test_minimal_graph_routes_strategy_advisor_agent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "制定 bilibili:90001 运营策略")
+    assert state["tool_calls"] == ["agent:strategy_advisor"]
+    result = state["result"]
+    assert result["account_id"] == "bilibili:90001"
+    assert result["strategy"]["strategy_summary"]
+    assert result["report"]
+
+
+def test_minimal_graph_agent_missing_param_returns_hint(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "制定运营策略")
+    assert state["tool_calls"] == ["agent:strategy_advisor"]
+    assert "缺少" in state["result"]
