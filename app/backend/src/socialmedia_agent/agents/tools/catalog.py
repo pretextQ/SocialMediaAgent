@@ -1,8 +1,8 @@
-"""8 个内部 Tool 的实现与组装。
+"""9 个内部 Tool 的实现与组装。
 
 数据来源约束：
-- get_account_profile / get_recent_contents / get_content_metrics /
-  analyze_content_performance → Repository（核心库）
+- get_account_profile / get_recent_contents / get_content_details /
+  get_content_metrics / analyze_content_performance → Repository（核心库）
 - search_operation_knowledge → RAG（运营知识）
 - get_trend_data → 趋势数据（P4 提供真实源，当前返回占位空列表）
 - get_historical_strategy / save_operation_memory → Memory（账号历史运营特征）
@@ -38,6 +38,10 @@ class RecentContentsArgs(BaseModel):
 
 
 class ContentMetricsArgs(BaseModel):
+    content_id: str
+
+
+class ContentDetailsArgs(BaseModel):
     content_id: str
 
 
@@ -99,6 +103,24 @@ def _get_recent_contents(ctx: ToolContext, account_id: str, limit: int) -> list[
             }
             for r in rows
         ]
+
+
+def _get_content_details(ctx: ToolContext, content_id: str) -> dict | None:
+    with ctx.database.session() as session:
+        model = session.scalar(
+            select(ContentModel).where(ContentModel.canonical_id == content_id)
+        )
+        if model is None:
+            return None
+        return {
+            "canonical_id": model.canonical_id,
+            "title": model.title,
+            "content": model.content,
+            "account_id": model.account_id,
+            "content_type": model.content_type,
+            "publish_time": model.publish_time.isoformat() if model.publish_time else None,
+            "url": model.url,
+        }
 
 
 def _get_content_metrics(ctx: ToolContext, content_id: str) -> list[dict]:
@@ -191,6 +213,12 @@ def build_core_tools(ctx: ToolContext) -> list[Tool]:
             description="获取某条内容的指标快照",
             args_schema=ContentMetricsArgs,
             fn=lambda **kw: _get_content_metrics(ctx, **kw),
+        ),
+        Tool(
+            name="get_content_details",
+            description="按 content_id 获取单条内容详情（标题/正文/所属账号）",
+            args_schema=ContentDetailsArgs,
+            fn=lambda **kw: _get_content_details(ctx, **kw),
         ),
         Tool(
             name="analyze_content_performance",

@@ -150,7 +150,7 @@ def test_registry_get_list_invoke(tools):
     reg = ToolRegistry()
     for t in tools:
         reg.register(t)
-    assert len(reg.list()) == 8
+    assert len(reg.list()) == 9
     result = reg.invoke("get_account_profile", account_id="bilibili:90001")
     assert result["canonical_id"] == "bilibili:90001"
     with pytest.raises(KeyError):
@@ -179,6 +179,16 @@ def test_get_content_metrics(context):
     assert len(result) == 1
     assert result[0]["metric_type"] == "views"
     assert Decimal(result[0]["value"]) == Decimal("1000")
+
+
+def test_get_content_details(context):
+    tools = {t.name: t for t in build_core_tools(context)}
+    result = tools["get_content_details"].invoke(content_id="bilibili:1001")
+    assert result["title"] == "人工智能入门"
+    assert result["account_id"] == "bilibili:90001"
+    assert result["content_type"] == "video"
+    assert result["publish_time"] is not None
+    assert tools["get_content_details"].invoke(content_id="bilibili:9999") is None
 
 
 def test_analyze_content_performance(context):
