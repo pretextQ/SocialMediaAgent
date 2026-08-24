@@ -13,7 +13,7 @@ dependencies = [
     "numpy>=2.0",
     "openai>=2.0",
     "apscheduler>=3.10",
-    "mcp>=1.0",
+    "mcp>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -31,3 +31,6 @@ packages = ["src/socialmedia_agent"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+filterwarnings = [
+    "ignore:Field 'lifespan' has an incomplete definition:UserWarning",
+]

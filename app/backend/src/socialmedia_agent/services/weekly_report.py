@@ -14,9 +14,7 @@ from pathlib import Path
 
 from socialmedia_agent.agents.account_diagnosis.graph import build_diagnosis_graph
 from socialmedia_agent.agents.strategy_advisor.graph import build_strategy_advisor_graph
-from socialmedia_agent.agents.tools.base import ToolContext
-from socialmedia_agent.agents.tools.catalog import build_core_tools
-from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.memory.summarizer import Summarizer
@@ -24,15 +22,11 @@ from socialmedia_agent.repositories.account_repo import AccountRepository
 
 
 def _registry(database: Database, memory_store: SQLAlchemyMemoryStore | None) -> ToolRegistry:
-    ctx = ToolContext(
-        database=database,
+    return build_registry(
+        database,
         memory_store=memory_store,
         summarizer=Summarizer() if memory_store else None,
     )
-    reg = ToolRegistry()
-    for tool in build_core_tools(ctx):
-        reg.register(tool)
-    return reg
 
 
 def build_weekly_report(

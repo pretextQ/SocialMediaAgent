@@ -27,6 +27,7 @@ from socialmedia_agent.repositories.metric_repo import MetricRepository
 from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 from .base import Tool, ToolContext
+from .registry import ToolRegistry
 
 
 class AccountProfileArgs(BaseModel):
@@ -266,3 +267,22 @@ def build_core_tools(ctx: ToolContext) -> list[Tool]:
             fn=lambda **kw: _save_operation_memory(ctx, **kw),
         ),
     ]
+
+
+def build_registry(
+    database,
+    retriever=None,
+    memory_store=None,
+    summarizer=None,
+) -> ToolRegistry:
+    """按依赖集合组装 ToolRegistry（Service 层统一入口）。"""
+    ctx = ToolContext(
+        database=database,
+        retriever=retriever,
+        memory_store=memory_store,
+        summarizer=summarizer,
+    )
+    reg = ToolRegistry()
+    for tool in build_core_tools(ctx):
+        reg.register(tool)
+    return reg
