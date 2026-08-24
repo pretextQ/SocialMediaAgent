@@ -6,7 +6,7 @@ from socialmedia_agent.connectors.base import PlatformConnector, RawContent
 from socialmedia_agent.domain.enums import MetricType
 
 from .reader import MediaCrawlerReader
-from .runner import MediaCrawlerRunner
+from .runner import MediaCrawlerRunner, STAGING_DB_PATH
 from .schemas import PlatformTableSchema, get_table_schema
 
 
@@ -17,7 +17,7 @@ class MediaCrawlerConnector(PlatformConnector):
         reader: MediaCrawlerReader | None = None,
     ):
         self.runner = runner or MediaCrawlerRunner()
-        self.reader = reader or MediaCrawlerReader()
+        self.reader = reader or MediaCrawlerReader(STAGING_DB_PATH)
 
     def search(self, keyword: str, platform: str = "bili", limit: int = 10) -> list[RawContent]:
         self.runner.run_search(platform, keyword, max_count=limit)
