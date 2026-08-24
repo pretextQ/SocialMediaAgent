@@ -1,0 +1,277 @@
+:root {
+  /* ── 主色 · 铂蓝 ── */
+  --color-primary: #2563eb;
+  --color-primary-light: #3b82f6;
+  --color-primary-lighter: #dbeafe;
+  --color-primary-dark: #1d4ed8;
+
+  /* ── 辅助色 · 云青 / 雾银 ── */
+  --color-accent: #0ea5e9;
+  --color-accent-light: #e0f2fe;
+  --color-silver: #94a3b8;
+
+  /* ── 语义色 ── */
+  --color-success: #10b981;
+  --color-success-light: #d1fae5;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fef3c7;
+  --color-danger: #ef4444;
+  --color-danger-light: #fee2e2;
+  --color-info: #94a3b8;
+
+  /* ── 中性色 ── */
+  --color-bg-page: #f8fafc;
+  --color-bg-card: #ffffff;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-sidebar-hover: rgba(37, 99, 235, 0.06);
+  --color-bg-sidebar-active: rgba(37, 99, 235, 0.10);
+  --color-bg-header: #ffffff;
+  --color-bg-elevated: #ffffff;
+
+  --color-text-primary: #0f172a;
+  --color-text-regular: #334155;
+  --color-text-secondary: #64748b;
+  --color-text-placeholder: #94a3b8;
+  --color-text-sidebar: #64748b;
+  --color-text-sidebar-active: #2563eb;
+
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+
+  /* ── 平台品牌色 ── */
+  --color-plat-douyin: #161823;
+  --color-plat-xiaohongshu: #fe2c55;
+  --color-plat-wechat: #07c160;
+  --color-plat-kuaishou: #ff4906;
+  --color-plat-bilibili: #00a1d6;
+
+  /* ── 字体 ── */
+  --font-family: 'Inter', 'Alibaba PuHuiTi', -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-size-3xs: 10px;
+  --font-size-2xs: 11px;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-base: 1.6;
+
+  /* ── 间距 (4px base) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+--z-base: 0;
+--z-content: 1;
+--z-sidebar: 10;
+--z-header: 20;
+--z-tabbar: 30;
+--z-dropdown: 1000;
+--z-modal: 2000;
+--z-toast: 3000;
+--z-debug: 9999;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── 布局 ── */
+  --sidebar-width: 150px;
+  --sidebar-collapsed-width: 64px;
+  --header-height: 56px;
+
+  /* ── 圆角 ── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── 阴影 ── */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px rgba(15, 23, 42, 0.06), 0 4px 6px rgba(15, 23, 42, 0.04);
+  --shadow-xl: 0 20px 25px rgba(15, 23, 42, 0.08), 0 8px 10px rgba(15, 23, 42, 0.04);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.2);
+
+  /* ── 状态色 ── */
+  --color-disabled: #c0c4cc;
+  --color-disabled-light: #f5f7fa;
+  --opacity-disabled: 0.6;
+
+  /* ── 工作区 (Browser Workspace) ── */
+  --color-workspace-bg: #f1f5f9;
+  --color-workspace-surface: #ffffff;
+  --color-workspace-border: #e2e8f0;
+  --color-workspace-text: #0f172a;
+  --color-workspace-text-secondary: #64748b;
+  --color-workspace-text-muted: #94a3b8;
+  --color-workspace-hover: rgba(0, 0, 0, 0.04);
+  --color-workspace-active: #2563eb;
+  --color-workspace-tab-active-bg: #ffffff;
+  --color-workspace-tab-inactive-text: #64748b;
+  --color-workspace-url-bg: #ffffff;
+  --color-workspace-url-focus-bg: #ffffff;
+  --color-workspace-url-focus-border: #2563eb;
+  --color-workspace-nav-btn: #64748b;
+  --color-workspace-nav-btn-hover: #0f172a;
+  --color-workspace-nav-btn-disabled: rgba(100, 116, 139, 0.3);
+
+  /* ── 图表色板 ── */
+  --chart-color-1: #2563eb;
+  --chart-color-2: #10b981;
+  --chart-color-3: #f59e0b;
+  --chart-color-4: #ef4444;
+  --chart-color-5: #8b5cf6;
+  --chart-color-6: #0ea5e9;
+  --chart-bg-light: #ffffff;
+  --chart-bg-dark: #1d1e2c;
+  --chart-border-light: #e5e6eb;
+  --chart-border-dark: #333333;
+  --chart-text-light: #4e5969;
+  --chart-text-secondary: #86909c;
+  --chart-text-dark: #a3a6b4;
+  --chart-split-line-light: #f2f3f5;
+  --chart-split-line-dark: rgba(255, 255, 255, 0.06);
+
+  /* ── 分组调色板 (HSL 色相均匀分布 8 色) ── */
+  --group-color-1: hsl(0, 72%, 60%);
+  --group-color-2: hsl(38, 82%, 55%);
+  --group-color-3: hsl(145, 55%, 48%);
+  --group-color-4: hsl(217, 91%, 60%);
+  --group-color-5: hsl(210, 14%, 58%);
+  --group-color-6: hsl(271, 47%, 56%);
+  --group-color-7: hsl(168, 64%, 44%);
+  --group-color-8: hsl(4, 75%, 55%);
+
+  /* ── 扩展平台品牌色 ── */
+  --color-plat-toutiaohao: #f85959;
+  --color-plat-zhihu: #0084ff;
+  --color-plat-csdn: #fc5531;
+  --color-plat-juejin: #007fff;
+  --color-plat-weibo: #e6162d;
+
+  /* ── 过渡 ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms ease;
+
+  /* ── CSS 变量别名 (兼容旧命名) ── */
+  --border-radius-xs: var(--radius-xs);
+  --border-radius-sm: var(--radius-sm);
+  --border-radius-md: var(--radius-md);
+  --border-radius-lg: var(--radius-lg);
+  --border-radius-xl: var(--radius-xl);
+  --border-radius-full: var(--radius-full);
+
+  /* ── Element Plus 主题覆盖 ── */
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: var(--color-primary-light);
+  --el-color-primary-light-9: var(--color-primary-lighter);
+  --el-color-primary-dark-2: var(--color-primary-dark);
+  --el-color-success: var(--color-success);
+  --el-color-warning: var(--color-warning);
+  --el-color-danger: var(--color-danger);
+  --el-color-info: var(--color-info);
+  --el-border-radius-base: var(--radius-sm);
+  --el-font-family: var(--font-family);
+  --el-bg-color: var(--color-bg-card);
+  --el-bg-color-page: var(--color-bg-page);
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-regular);
+  --el-text-color-secondary: var(--color-text-secondary);
+  --el-text-color-placeholder: var(--color-text-placeholder);
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border-light);
+}
+
+html.dark {
+  --color-bg-page: #0f172a;
+  --color-bg-card: #1e293b;
+  --color-bg-sidebar: #1e293b;
+  --color-bg-sidebar-hover: rgba(59, 130, 246, 0.1);
+  --color-bg-sidebar-active: rgba(59, 130, 246, 0.15);
+  --color-bg-header: #1e293b;
+  --color-bg-elevated: #1e293b;
+
+  --color-text-primary: #f1f5f9;
+  --color-text-regular: #cbd5e1;
+  --color-text-secondary: #94a3b8;
+  --color-text-placeholder: #64748b;
+  --color-text-sidebar: #94a3b8;
+  --color-text-sidebar-active: #3b82f6;
+
+  --color-border: #334155;
+  --color-border-light: #1e293b;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5), 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6), 0 8px 10px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.3);
+
+  --el-bg-color: var(--color-bg-card);
+  --el-bg-color-page: var(--color-bg-page);
+  --el-text-color-primary: var(--color-text-primary);
+  --el-text-color-regular: var(--color-text-regular);
+  --el-text-color-secondary: var(--color-text-secondary);
+  --el-text-color-placeholder: var(--color-text-placeholder);
+  --el-border-color: var(--color-border);
+  --el-border-color-light: var(--color-border-light);
+  --el-fill-color-blank: var(--color-bg-card);
+  --el-fill-color: var(--color-bg-page);
+  --el-fill-color-light: var(--color-bg-page);
+
+  --color-workspace-bg: #0f172a;
+  --color-workspace-surface: #1e293b;
+  --color-workspace-border: #334155;
+  --color-workspace-text: #f1f5f9;
+  --color-workspace-text-secondary: #94a3b8;
+  --color-workspace-text-muted: #64748b;
+  --color-workspace-hover: rgba(255, 255, 255, 0.05);
+  --color-workspace-active: #2563eb;
+  --color-workspace-tab-active-bg: #0f172a;
+  --color-workspace-tab-inactive-text: #94a3b8;
+  --color-workspace-url-bg: #0f172a;
+  --color-workspace-url-focus-bg: #1e293b;
+  --color-workspace-url-focus-border: #2563eb;
+  --color-workspace-nav-btn: #94a3b8;
+  --color-workspace-nav-btn-hover: #f1f5f9;
+  --color-workspace-nav-btn-disabled: rgba(148, 163, 184, 0.3);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.el-button:focus-visible,
+.el-input:focus-visible,
+.el-select:focus-visible,
+.el-checkbox:focus-visible,
+.el-radio:focus-visible,
+.el-switch:focus-visible,
+.el-tabs__item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.is-disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}

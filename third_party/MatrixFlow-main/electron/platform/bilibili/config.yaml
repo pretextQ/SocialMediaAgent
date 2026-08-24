@@ -1,0 +1,35 @@
+riskControl:
+  enabled: true
+  typingDelayMs:
+    min: 80
+    max: 250
+  clickDelayMs:
+    min: 150
+    max: 400
+  stepIntervalSec:
+    min: 1.0
+    max: 2.0
+
+platformId: bilibili
+platformName: B站
+domain: bilibili.com
+
+urls:
+  creator: https://member.bilibili.com/platform/home
+  upload: https://member.bilibili.com/platform/upload/video/frame
+  publish: https://member.bilibili.com/platform/upload/video/frame
+  login: https://passport.bilibili.com/login
+  contentManage: https://member.bilibili.com/platform/upload-manager/article
+  statsOverview: https://member.bilibili.com/platform/data-view/home
+  statsContent: https://member.bilibili.com/platform/data-view/content
+
+rateLimit:
+  hourly: 8
+  daily: 30
+  burst: 3
+
+capabilities:
+  serverScheduledPublish: true
+  maxScheduleDays: 10
+  comment: true
+  image: true

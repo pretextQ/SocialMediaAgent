@@ -1,0 +1,81 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": { "navigationBarTitleText": "舆情概览" }
+    },
+    {
+      "path": "pages/list/list",
+      "style": { "navigationBarTitleText": "舆情列表" }
+    },
+    {
+      "path": "pages/list/detail",
+      "style": { "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/list/topic",
+      "style": { "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/settings/settings",
+      "style": { "navigationBarTitleText": "监控设置" }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": { "navigationBarTitleText": "个人中心" }
+    },
+    {
+      "path": "pages/chat/agentChat",
+      "style": {
+        "navigationBarTitleText": "智能助理",
+        "navigationBarBackgroundColor": "#F3F4F6"
+      }
+    },
+    {
+      "path": "pages/settings/pushSettings",
+      "style": { "navigationBarTitleText": "推送设置" }
+    },
+    {
+      "path": "pages/settings/apiSettings",
+      "style": { "navigationBarTitleText": "模型设置" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "舆情雷达",
+    "navigationBarBackgroundColor": "#1a1a2e",
+    "backgroundColor": "#f5f5f5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#007AFF",
+    "backgroundColor": "#1a1a2e",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/home.png",
+        "selectedIconPath": "static/home_selected.png"
+      },
+      {
+        "pagePath": "pages/list/list",
+        "text": "列表",
+        "iconPath": "static/list.png",
+        "selectedIconPath": "static/list_selected.png"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "text": "设置",
+        "iconPath": "static/settings.png",
+        "selectedIconPath": "static/settings_selected.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "static/profile.png",
+        "selectedIconPath": "static/profile_selected.png"
+      }
+    ]
+  }
+}

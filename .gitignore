@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+venv/
+.venv/
+
+# Node / Electron
+node_modules/
+dist-electron/
+
+# Data & logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local AI tool configs (vendored reference, machine-local)
+.claude/
+.codex/
+.agents/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

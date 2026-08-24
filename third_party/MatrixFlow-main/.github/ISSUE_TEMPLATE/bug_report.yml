@@ -1,0 +1,52 @@
+name: Bug Report
+description: 提交 Bug 报告
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你花时间提交 Bug 报告！请尽可能提供详细信息。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 描述
+      description: 发生了什么？预期行为是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 如何触发这个 Bug？
+      placeholder: |
+        1. 打开 '...'
+        2. 点击 '...'
+        3. 滚动到 '...'
+        4. 看到错误
+
+  - type: input
+    id: version
+    attributes:
+      label: MatrixFlow 版本
+      placeholder: 0.3.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志/截图
+      description: 如有，请粘贴相关日志输出或截图

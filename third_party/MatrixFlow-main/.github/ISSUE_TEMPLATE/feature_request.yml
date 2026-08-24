@@ -1,0 +1,34 @@
+name: Feature Request
+description: 提交功能请求
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 这个功能解决什么问题？你的使用场景是什么？
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望方案
+      description: 你希望 MatrixFlow 怎样解决这个问题？
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 你考虑过哪些替代方案？
+
+  - type: checkboxes
+    id: platform
+    attributes:
+      label: 影响的平台
+      options:
+        - label: 抖音
+        - label: 小红书
+        - label: 视频号
+        - label: 快手
+        - label: 通用

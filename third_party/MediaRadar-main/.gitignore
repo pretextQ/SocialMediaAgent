@@ -1,0 +1,180 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Sphinx
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder
+.spyderproject
+.spyproject
+
+# Rope
+.ropeproject
+
+# mkdocs
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Cython
+cython_debug/
+
+# pdm
+.pdm.toml
+
+# IDEs
+.idea/
+.vscode/
+.DS_Store
+
+# Claude / Codex / Agent working directories
+.agents/
+.claude/
+.codex/
+
+# Project-specific: design mockups
+new_web_design/
+
+# Project-specific: data directories
+/temp_image/
+/browser_data/
+/data/
+
+# Project-specific: database files
+database/*.db
+radar_state.db
+sqlite_tables.db
+
+# Project-specific: test data (crawler)
+backend/services/crawler_service/media_platform/*/test_data/*.html
+
+# Project-specific: plans and debug
+plans/
+debug_test.py
+
+# Project-specific: generated zones
+agent_zone/
+debug_tools/
+.refer
+
+# Node modules (frontend)
+node_modules/
+
+# pytest cache
+.pytest_cache/
+# Next.js build output
+.next/
+out/
+
+# Log files
+logs/*.log
+logs/**/*.log
+tests/unit/_tmp_memory.db
+
+# SQLite database files
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
