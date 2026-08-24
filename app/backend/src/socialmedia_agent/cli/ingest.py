@@ -12,6 +12,7 @@ import sys
 from socialmedia_agent.connectors.mediacrawler import MediaCrawlerConnector
 from socialmedia_agent.connectors.mediacrawler.runner import MediaCrawlerRunError
 from socialmedia_agent.database.session import Database
+from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.services.ingest import IngestService
 
 
@@ -25,6 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    setup_logging()
     args = build_parser().parse_args(argv)
 
     database = Database(url=args.db_url)

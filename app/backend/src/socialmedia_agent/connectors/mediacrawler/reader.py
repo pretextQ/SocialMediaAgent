@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 
 from socialmedia_agent.domain.enums import MetricType
 
 from .schemas import PlatformTableSchema, get_table_schema
+
+logger = logging.getLogger(__name__)
 
 
 class MediaCrawlerReader:
@@ -37,7 +40,9 @@ class MediaCrawlerReader:
                 (max_count,),
             ).fetchall()
 
-        return [self._to_row(schema, dict(row), keyword) for row in rows if self._match(schema, dict(row), keyword)]
+        result = [self._to_row(schema, dict(row), keyword) for row in rows if self._match(schema, dict(row), keyword)]
+        logger.debug("读取中转库 table=%s rows=%s", schema.table, len(result))
+        return result
 
     @staticmethod
     def _match(schema: PlatformTableSchema, row: dict, keyword: str) -> bool:

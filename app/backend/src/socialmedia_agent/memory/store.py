@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime
 
@@ -11,6 +12,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from socialmedia_agent.database.base import UTCDateTime
 from socialmedia_agent.database.engine import create_db_engine, get_memory_database_url
 from socialmedia_agent.memory.models import MemoryCategory, MemoryEntry
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryBase(DeclarativeBase):
@@ -48,6 +51,8 @@ class SQLAlchemyMemoryStore:
         self.session.merge(record)
         self.session.commit()
         entry.id = record.id
+        # 只记录元数据，不记录 content（防敏感信息）
+        logger.info("Memory 写入 account=%s category=%s id=%s", entry.account_id, entry.category.value, entry.id)
         return entry
 
     def list_for_account(

@@ -15,6 +15,7 @@ from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.factory import build_gateway
 from socialmedia_agent.llm.gateway import LLMGateway
+from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore, build_memory_store
 from socialmedia_agent.memory.summarizer import Summarizer
 from socialmedia_agent.services import mcp_tools
@@ -71,6 +72,7 @@ def create_mcp_server(
 
 def run_mcp_stdio() -> None:
     """stdio 传输入口：`python -m socialmedia_agent.services.mcp_server`。"""
+    setup_logging()
     create_mcp_server(gateway=build_gateway()).run(transport="stdio")
 
 

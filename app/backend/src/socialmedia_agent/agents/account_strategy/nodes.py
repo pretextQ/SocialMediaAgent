@@ -8,6 +8,8 @@ report：由结构化结果规则渲染人类可读 markdown
 
 from __future__ import annotations
 
+import logging
+
 from socialmedia_agent.agents.account_strategy.prompts import SYSTEM_PROMPT
 from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput
 from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
@@ -17,6 +19,8 @@ from socialmedia_agent.agents.topic_recommendation.nodes import (
     gather as gather_topics,
 )
 from socialmedia_agent.llm.gateway import LLMGateway
+
+logger = logging.getLogger(__name__)
 
 
 def gather(registry: ToolRegistry, account_id: str) -> dict:
@@ -53,13 +57,15 @@ def analyze(gateway: LLMGateway | None, facts: dict) -> AccountStrategyOutput:
 
 def persist(registry: ToolRegistry, strategy: AccountStrategyOutput) -> dict:
     """将策略摘要写入 Memory（category=strategy），形成读-写闭环。"""
-    return invoke_tool(
+    result = invoke_tool(
         registry,
         "save_operation_memory",
         account_id=strategy.account_id,
         category="strategy",
         content=strategy.strategy_summary,
     )
+    logger.info("策略已沉淀到 Memory account=%s", strategy.account_id)
+    return result
 
 
 def _rule_fallback(facts: dict) -> AccountStrategyOutput:

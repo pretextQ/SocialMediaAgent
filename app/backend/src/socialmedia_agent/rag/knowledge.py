@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,8 @@ from socialmedia_agent.rag.faiss_store import FaissVectorStore
 from socialmedia_agent.rag.placeholder import HashEmbedder
 from socialmedia_agent.rag.retriever import Retriever
 from socialmedia_agent.rag.vector_store import VectorStore
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,6 +66,7 @@ def seed_knowledge(store: VectorStore, embedder: Embedder, docs: list[KnowledgeD
         [{"title": d.title, "content": d.content} for d in docs],
         ids=[d.id for d in docs],
     )
+    logger.info("知识库写入 %s 条", len(docs))
     return len(docs)
 
 
@@ -85,4 +89,5 @@ def build_knowledge_retriever(settings: Settings | None = None) -> Retriever:
     embedder = build_embedder(s)
     store_path = Path(s.knowledge_store_path)
     store = FaissVectorStore.load(store_path) if store_path.exists() else FaissVectorStore()
+    logger.info("知识库装载 count=%s path=%s", store.count(), store_path)
     return Retriever(embedder=embedder, store=store)

@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from socialmedia_agent.config import get_settings
+from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.rag.faiss_store import FaissVectorStore
 from socialmedia_agent.rag.knowledge import build_embedder, load_seed_docs, seed_knowledge
 
@@ -24,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    setup_logging()
     args = build_parser().parse_args(argv)
     settings = get_settings()
     store_path = Path(args.store or settings.knowledge_store_path)

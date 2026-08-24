@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from socialmedia_agent.connectors.base import PlatformConnector, RawContent
 from socialmedia_agent.domain.enums import MetricType
 
 from .reader import MediaCrawlerReader
 from .runner import MediaCrawlerRunner, STAGING_DB_PATH
 from .schemas import PlatformTableSchema, get_table_schema
+
+logger = logging.getLogger(__name__)
 
 
 class MediaCrawlerConnector(PlatformConnector):
@@ -23,6 +27,7 @@ class MediaCrawlerConnector(PlatformConnector):
         self.runner.run_search(platform, keyword, max_count=limit)
         rows = self.reader.read_latest_contents(platform, keyword, max_count=limit)
         schema = get_table_schema(platform)
+        logger.info("MediaCrawlerConnector.search platform=%s keyword=%s 命中 %s 条", platform, keyword, len(rows))
         return [self._to_raw(row, schema) for row in rows]
 
     @staticmethod

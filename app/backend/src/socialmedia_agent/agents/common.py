@@ -9,12 +9,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable, Type
 
 from pydantic import BaseModel
 
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.llm.gateway import LLMGateway
+
+logger = logging.getLogger(__name__)
 
 
 def invoke_tool(registry: ToolRegistry, name: str, **kwargs: Any) -> Any:
@@ -34,7 +37,9 @@ def llm_analyze(
     fallback: Callable[[dict], BaseModel],
 ) -> BaseModel:
     """LLM 结构化输出；gateway 未配置或调用/校验失败时走规则兜底。"""
+    model_name = response_model.__name__
     if gateway is None:
+        logger.info("llm_analyze: gateway 未配置，走规则兜底 model=%s", model_name)
         return fallback(facts)
     result = gateway.call(
         system_prompt,
@@ -43,7 +48,9 @@ def llm_analyze(
         response_model=response_model,
     )
     if result.success and isinstance(result.data, response_model):
+        logger.debug("llm_analyze: LLM 结构化输出成功 model=%s", model_name)
         return result.data
+    logger.warning("llm_analyze: LLM 输出无效，回退规则兜底 model=%s", model_name)
     return fallback(facts)
 
 

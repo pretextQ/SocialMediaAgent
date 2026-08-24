@@ -6,10 +6,13 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 from pathlib import Path
 
 from socialmedia_agent.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _backend_dir() -> Path:
@@ -46,8 +49,10 @@ class MediaCrawlerRunner:
 
     def run_search(self, platform_code: str, keywords: str, max_count: int = 3) -> None:
         if not self.crawler_dir.exists():
+            logger.error("MediaCrawler 目录不存在: %s", self.crawler_dir)
             raise MediaCrawlerRunError(f"MediaCrawler 目录不存在: {self.crawler_dir}")
         if not self.python.exists():
+            logger.error("MediaCrawler 解释器不存在: %s", self.python)
             raise MediaCrawlerRunError(f"MediaCrawler 解释器不存在: {self.python}（请先安装隔离 venv）")
 
         cmd = [
@@ -68,6 +73,7 @@ class MediaCrawlerRunner:
             "--max_comments_count_singlenotes",
             "0",
         ]
+        logger.info("MediaCrawler 采集开始 platform=%s keywords=%s limit=%s", platform_code, keywords, max_count)
         try:
             result = subprocess.run(
                 cmd,
@@ -77,8 +83,11 @@ class MediaCrawlerRunner:
                 timeout=self.timeout,
             )
         except subprocess.TimeoutExpired as exc:
+            logger.error("MediaCrawler 采集超时（>%ss）", self.timeout)
             raise MediaCrawlerRunError(f"MediaCrawler 采集超时（>{self.timeout}s）") from exc
 
         if result.returncode != 0:
             tail = "\n".join((result.stderr or "").strip().splitlines()[-20:])
+            logger.error("MediaCrawler 执行失败 code=%s", result.returncode)
             raise MediaCrawlerRunError(f"MediaCrawler 执行失败 (code={result.returncode})\n{tail}")
+        logger.info("MediaCrawler 采集完成 platform=%s", platform_code)
