@@ -150,3 +150,41 @@ def test_circuit_breaker_open_raises_without_breaker_capture():
     breaker.record_failure()
     assert breaker.state == "open"
     assert isinstance(breaker.state, str)
+
+
+def test_openai_compat_provider_calls_endpoint():
+    """DoD：LLM Gateway 至少对接 1 个提供商并通过 mock 测试。
+
+    用 httpx2 MockTransport 模拟 OpenAI 兼容端点，验证 OpenAICompatProvider
+    正确组装请求并返回文本。
+    """
+    import httpx2
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        assert request.url.path.endswith("/chat/completions")
+        body = {
+            "id": "mock-1",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": '{"ok": true}'}}],
+        }
+        return httpx2.Response(200, json=body)
+
+    transport = httpx2.MockTransport(handler)
+    client = httpx2.Client(transport=transport)
+
+    from socialmedia_agent.llm.gateway import LLMGateway
+    from socialmedia_agent.llm.providers import OpenAICompatProvider
+
+    provider = OpenAICompatProvider(
+        api_key="test-key",
+        base_url="https://mock.example/v1",
+        model="deepseek-chat",
+        http_client=client,
+    )
+    gateway = LLMGateway(
+        provider=provider,
+        breaker=CircuitBreaker(name="openai", failure_threshold=3, recovery_timeout=60),
+    )
+    result = gateway.call("sys", "user", response_format="json")
+    assert result.success
+    assert result.data == {"ok": True}
+    client.close()

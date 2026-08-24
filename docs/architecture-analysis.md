@@ -329,12 +329,15 @@ Memory：写入=每次诊断/策略执行后沉淀账号特征；读取=Agent �
 
 ### P2
 
-- LLM Gateway 至少对接 1 个提供商并通过 mock 测试
-- 熔断/重试生效
-- RAG 可写入知识文档并召回（召回断言）
-- Memory 可存/取/摘要账号特征
-- LangGraph 最小图（含工具调用）跑通
-- 8 个内部 Tool 均可独立调用并有测试
+- [x] LLM Gateway 至少对接 1 个提供商并通过 mock 测试（`test_llm_gateway.py::test_openai_compat_provider_calls_endpoint`，httpx2 MockTransport）
+- [x] 熔断/重试生效（`test_llm_gateway.py`：OPEN 短路/恢复/临时失败重试）
+- [x] RAG 可写入知识文档并召回（召回断言）（`test_faiss_store.py::test_retriever_recalls_matching_document`）
+- [x] Memory 可存/取/摘要账号特征（`test_memory.py`，独立 DB + TTL）
+- [x] LangGraph 最小图（含工具调用）跑通（`test_agent_graph.py`，规则路由 → 内部 Tool）
+- [x] 8 个内部 Tool 均可独立调用并有测试（`test_agent_tools.py`，10 条）
+
+> **状态（2026-08-24 记录）**：P2 全部六条 DoD 达成，全量 `pytest` 152 passed。
+> 说明：P2 最小图使用确定性规则路由（不依赖 LLM），保证可测；P3 起由 LLM 决策工具调用。真实提供商接入需 `.env` 密钥（不入库），OpenAI 兼容端点（DeepSeek 等）经 mock 验证。
 
 ### P3
 
