@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
+
+from socialmedia_agent.config import get_settings
 
 
 def _backend_dir() -> Path:
@@ -22,22 +23,10 @@ def _project_root() -> Path:
     return _backend_dir().parent.parent
 
 
-# 默认路径（可被环境变量覆盖，避免写死）
-CRAWLER_DIR = Path(
-    os.getenv(
-        "SMA_MC_DIR",
-        str(_project_root() / "third_party" / "MediaRadar-main" / "backend" / "services" / "crawler_service"),
-    )
-)
-CRAWLER_PYTHON = Path(
-    os.getenv("SMA_MC_PYTHON", str(_backend_dir() / ".venv-crawler" / "Scripts" / "python.exe"))
-)
-STAGING_DB_PATH = Path(
-    os.getenv(
-        "SMA_MC_DB",
-        str(_project_root() / "third_party" / "MediaRadar-main" / "backend" / "data" / "sqlite_tables.db"),
-    )
-)
+# 默认路径（由配置层 / .env 管理，避免写死）
+CRAWLER_DIR = Path(get_settings().crawler_dir)
+CRAWLER_PYTHON = Path(get_settings().crawler_python)
+STAGING_DB_PATH = Path(get_settings().crawler_db)
 
 
 class MediaCrawlerRunError(RuntimeError):
