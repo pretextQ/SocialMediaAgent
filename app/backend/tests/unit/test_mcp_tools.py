@@ -53,12 +53,13 @@ def make_ctx(tmp_path):
     return db, mem, build_registry(db, memory_store=mem, summarizer=Summarizer())
 
 
-def test_mcp_diagnosis_handler(tmp_path):
-    from socialmedia_agent.services.mcp_tools import run_diagnosis
+def test_mcp_account_strategy_handler(tmp_path):
+    from socialmedia_agent.services.mcp_tools import run_account_strategy
 
     db, mem, reg = make_ctx(tmp_path)
-    out = run_diagnosis(reg, "bilibili:90001")
-    assert 0 <= out["diagnosis"]["account_health"] <= 100
+    out = run_account_strategy(reg, "bilibili:90001")
+    assert 0 <= out["strategy"]["account_health"] <= 100
+    assert out["strategy"]["strategy_summary"]
     assert out["report"]
 
 
@@ -100,10 +101,10 @@ def test_mcp_title_optimization_handler(tmp_path):
 
 
 def test_mcp_strategy_handler_writes_memory(tmp_path):
-    from socialmedia_agent.services.mcp_tools import run_advise_strategy
+    from socialmedia_agent.services.mcp_tools import run_account_strategy
 
     db, mem, reg = make_ctx(tmp_path)
-    out = run_advise_strategy(reg, "bilibili:90001")
+    out = run_account_strategy(reg, "bilibili:90001")
     assert out["strategy"]["strategy_summary"]
     assert any(e.content == out["strategy"]["strategy_summary"] for e in mem.list_for_account("bilibili:90001"))
 

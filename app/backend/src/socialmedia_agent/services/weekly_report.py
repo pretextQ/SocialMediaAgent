@@ -12,8 +12,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from socialmedia_agent.agents.account_diagnosis.graph import build_diagnosis_graph
-from socialmedia_agent.agents.strategy_advisor.graph import build_strategy_advisor_graph
+from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
@@ -56,8 +55,7 @@ def build_weekly_report(
             if m.get("metric_type") == "views":
                 weekly_views += Decimal(m.get("value", "0"))
 
-    diag = build_diagnosis_graph(reg, None).invoke({"account_id": account_id})
-    strategy = build_strategy_advisor_graph(reg, None).invoke({"account_id": account_id})
+    merged = build_account_strategy_graph(reg, None).invoke({"account_id": account_id})
 
     count = len(weekly)
     return {
@@ -69,8 +67,8 @@ def build_weekly_report(
         "content_count": count,
         "total_views": str(weekly_views),
         "avg_views": str(int(weekly_views / count)) if count else "0",
-        "health": diag["diagnosis"].account_health,
-        "strategy_summary": strategy["strategy"].strategy_summary,
+        "health": merged["strategy"].account_health,
+        "strategy_summary": merged["strategy"].strategy_summary,
     }
 
 

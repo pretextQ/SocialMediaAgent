@@ -1,6 +1,6 @@
-"""Strategy Advisor 节点。
+"""Account Strategy 节点（P5.5.1，合并 Diagnosis + Strategy）。
 
-gather：经内部 Tool 收集 DB 事实（账号资料 / 表现 / 近期内容 / 历史策略(Memory读) / 趋势）
+gather：经内部 Tool 收集 DB 事实（账号资料 / 表现 / 近期内容 / 历史策略(Memory读) / 趋势 / 选题候选）
 analyze：LLM 结构化输出；失败或未配置 gateway 时规则兜底（确定性）
 persist：将策略摘要写入 Memory（category=strategy，读-写闭环）
 report：由结构化结果规则渲染人类可读 markdown
@@ -8,15 +8,19 @@ report：由结构化结果规则渲染人类可读 markdown
 
 from __future__ import annotations
 
+from socialmedia_agent.agents.account_strategy.prompts import SYSTEM_PROMPT
+from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput
 from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
-from socialmedia_agent.agents.strategy_advisor.prompts import SYSTEM_PROMPT
-from socialmedia_agent.agents.strategy_advisor.schemas import StrategyAdvisorOutput
 from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.topic_recommendation.nodes import (
+    build_topic_candidates,
+    gather as gather_topics,
+)
 from socialmedia_agent.llm.gateway import LLMGateway
 
 
 def gather(registry: ToolRegistry, account_id: str) -> dict:
-    """收集运营策略所需 DB 事实（只经 Tool）。"""
+    """收集账号诊断与策略所需 DB 事实（只经 Tool，含选题候选）。"""
     profile = invoke_tool(registry, "get_account_profile", account_id=account_id) or {}
     perf = invoke_tool(registry, "analyze_content_performance", account_id=account_id)
     recent = invoke_tool(registry, "get_recent_contents", account_id=account_id, limit=5)
@@ -27,6 +31,8 @@ def gather(registry: ToolRegistry, account_id: str) -> dict:
         if platform
         else []
     )
+    topic_facts = gather_topics(registry, account_id)
+    candidates = build_topic_candidates(topic_facts)
     return {
         "account_id": account_id,
         "profile": profile,
@@ -34,17 +40,18 @@ def gather(registry: ToolRegistry, account_id: str) -> dict:
         "recent_contents": recent,
         "history": history,
         "trends": trends,
+        "topic_candidates": [c.model_dump() for c in candidates],
     }
 
 
-def analyze(gateway: LLMGateway | None, facts: dict) -> StrategyAdvisorOutput:
+def analyze(gateway: LLMGateway | None, facts: dict) -> AccountStrategyOutput:
     """LLM 结构化输出；失败或未配置 gateway 时规则兜底。"""
     return llm_analyze(
-        gateway, SYSTEM_PROMPT, facts, StrategyAdvisorOutput, fallback=_rule_fallback
+        gateway, SYSTEM_PROMPT, facts, AccountStrategyOutput, fallback=_rule_fallback
     )
 
 
-def persist(registry: ToolRegistry, strategy: StrategyAdvisorOutput) -> dict:
+def persist(registry: ToolRegistry, strategy: AccountStrategyOutput) -> dict:
     """将策略摘要写入 Memory（category=strategy），形成读-写闭环。"""
     return invoke_tool(
         registry,
@@ -55,14 +62,35 @@ def persist(registry: ToolRegistry, strategy: StrategyAdvisorOutput) -> dict:
     )
 
 
-def _rule_fallback(facts: dict) -> StrategyAdvisorOutput:
-    """确定性规则兜底：按账号表现分档生成策略。"""
+def _rule_fallback(facts: dict) -> AccountStrategyOutput:
+    """确定性规则兜底：健康度按平均播放量分档 + 策略分档 + 选题候选注入周计划。"""
     account_id = facts.get("account_id", "")
     perf = facts.get("performance") or {}
     content_count = int(perf.get("content_count", 0))
     total_views = float(perf.get("total_views", "0") or 0)
     avg_views = int(total_views / content_count) if content_count else 0
 
+    # —— 诊断部分 ——
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+    recommendations: list[str] = []
+    if content_count == 0:
+        weaknesses.append("近期无内容产出")
+        recommendations.append("恢复稳定更新节奏")
+        health = 30
+    elif avg_views < 100:
+        weaknesses.append("平均播放量偏低")
+        recommendations.append("优化标题与封面，提升点击率")
+        health = 40
+    elif avg_views < 1000:
+        weaknesses.append("平均播放量中等，有提升空间")
+        recommendations.append("强化内容差异化，稳定更新")
+        health = 60
+    else:
+        strengths.append("更新稳定")
+        health = 75
+
+    # —— 策略部分 ——
     if content_count == 0:
         summary = "当前账号尚无内容产出，策略目标：建立稳定更新节奏"
         weekly_plan = ["第1周：完成内容定位并发布首条内容", "第2周起：保持每周 2 条更新"]
@@ -79,8 +107,17 @@ def _rule_fallback(facts: dict) -> StrategyAdvisorOutput:
         kpis = ["月度播放量环比提升 20%", "互动率保持稳中有升"]
         risks = ["内容同质化风险", "依赖单平台流量"]
 
-    return StrategyAdvisorOutput(
+    candidates = facts.get("topic_candidates") or []
+    if candidates:
+        weekly_plan.insert(0, f"优先制作热门选题：{candidates[0]['title']}")
+
+    return AccountStrategyOutput(
         account_id=account_id,
+        account_health=health,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        anomalies=[],
+        recommendations=recommendations,
         strategy_summary=summary,
         weekly_plan=weekly_plan,
         kpis=kpis,
@@ -88,17 +125,24 @@ def _rule_fallback(facts: dict) -> StrategyAdvisorOutput:
     )
 
 
-def render_report(strategy: StrategyAdvisorOutput, facts: dict) -> str:
+def render_report(strategy: AccountStrategyOutput, facts: dict) -> str:
     """由结构化结果渲染人类可读 markdown（确定性）。"""
     profile = facts.get("profile") or {}
     nickname = profile.get("nickname") or strategy.account_id
     sections = [
+        ("优势", strategy.strengths),
+        ("不足", strategy.weaknesses),
+        ("异常", strategy.anomalies),
+        ("建议", strategy.recommendations),
         ("周计划", strategy.weekly_plan),
         ("KPI", strategy.kpis),
         ("风险", strategy.risks),
     ]
     return render_markdown(
-        title=f"运营策略报告：{nickname}",
+        title=f"账号运营报告：{nickname}",
         sections=sections,
-        intro=[f"- 策略摘要：{strategy.strategy_summary}"],
+        intro=[
+            f"- 账号健康度：**{strategy.account_health}/100**",
+            f"- 策略摘要：{strategy.strategy_summary}",
+        ],
     )

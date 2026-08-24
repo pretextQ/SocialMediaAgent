@@ -1,10 +1,10 @@
-"""MCP Server（P5-3）：基于已验证内部 Tool/Agent 暴露 5~8 个核心 Tool。
+"""MCP Server（P5.3，P5.5.1 收敛为 7 个 Tool）。
 
 - create_mcp_server(database, memory_store)：构造 FastMCP 实例（stdio 可运行）
 - run_mcp_stdio()：命令行入口（stdio 传输）
-- 工具清单（非机械移植，对应已验证能力）：
-  diagnose_account / analyze_content / analyze_trends / recommend_topics /
-  optimize_title / advise_strategy / list_accounts / list_contents
+- 工具清单（基于已验证能力，非机械移植）：
+  account_strategy / analyze_content / analyze_trends / recommend_topics /
+  optimize_title / list_accounts / list_contents
 """
 
 from __future__ import annotations
@@ -29,9 +29,9 @@ def create_mcp_server(
     mcp = FastMCP("SocialMediaAgent", instructions="多平台自媒体智能运营 Agent 能力集合")
 
     @mcp.tool()
-    def diagnose_account(account_id: str) -> dict:
-        """账号健康诊断：返回健康度、优势、不足、异常与建议。"""
-        return mcp_tools.run_diagnosis(registry, account_id)
+    def account_strategy(account_id: str) -> dict:
+        """账号健康诊断与运营策略：健康度、优势/不足/异常/建议、策略摘要、周计划、KPI、风险，并沉淀到 Memory。"""
+        return mcp_tools.run_account_strategy(registry, account_id)
 
     @mcp.tool()
     def analyze_content(content_id: str) -> dict:
@@ -52,11 +52,6 @@ def create_mcp_server(
     def optimize_title(content_id: str | None = None, title: str | None = None) -> dict:
         """标题优化：content_id 或原始标题，返回固定 3 条优化标题与说明。"""
         return mcp_tools.run_optimize_title(registry, content_id, title)
-
-    @mcp.tool()
-    def advise_strategy(account_id: str) -> dict:
-        """运营策略制定：策略摘要、周计划、KPI、风险，并沉淀到 Memory。"""
-        return mcp_tools.run_advise_strategy(registry, account_id)
 
     @mcp.tool()
     def list_accounts(platform: str | None = None) -> list[dict]:

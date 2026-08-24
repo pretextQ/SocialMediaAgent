@@ -1,19 +1,19 @@
-"""P4 组合调用 e2e（DoD：可组合调用）。
+"""P4/P5.5 组合调用 e2e（DoD：可组合调用）。
 
-验证 5 个 Agent 连续调用可组合、account/content 关联一致：
-账号诊断 → 内容分析 → 选题推荐 → 标题优化 → 运营策略（策略沉淀到 Memory）。
+验证 3 个核心 Agent + 2 个内部能力连续调用可组合、account/content 关联一致：
+Account Strategy（合并诊断+策略）→ 内容分析 → 选题推荐 → 标题优化，
+策略沉淀到 Memory；最小图 Agent 级路由组合。
 """
 
 from sqlalchemy.orm import sessionmaker
 
-from socialmedia_agent.agents.account_diagnosis.graph import build_diagnosis_graph
+from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.content_analysis.graph import build_content_analysis_graph
-from socialmedia_agent.agents.strategy_advisor.graph import build_strategy_advisor_graph
-from socialmedia_agent.agents.title_optimization.graph import build_title_optimization_graph
-from socialmedia_agent.agents.topic_recommendation.graph import build_topic_recommendation_graph
+from socialmedia_agent.agents.title_optimization import nodes as title_capability
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
 from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.topic_recommendation import nodes as topic_capability
 from socialmedia_agent.database.engine import create_db_engine
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.account import Account
@@ -101,33 +101,35 @@ def make_context(tmp_path):
 def test_composed_agents_workflow(tmp_path):
     ctx, reg = make_context(tmp_path)
 
-    diag = build_diagnosis_graph(reg, None).invoke({"account_id": ACCT})
+    # 1. Account Strategy（合并诊断 + 策略，写 Memory）
+    st = build_account_strategy_graph(reg, None).invoke({"account_id": ACCT})
+    # 2. 内容分析
     ca = build_content_analysis_graph(reg, None).invoke({"content_id": C1})
-    rec = build_topic_recommendation_graph(reg, None).invoke({"account_id": ACCT})
-    opt = build_title_optimization_graph(reg, None).invoke({"content_id": C1})
-    st = build_strategy_advisor_graph(reg, None).invoke({"account_id": ACCT})
+    # 3. 选题推荐（内部能力）
+    rec_facts = topic_capability.gather(reg, ACCT)
+    rec = topic_capability.analyze(None, rec_facts)
+    # 4. 标题优化（内部能力）
+    opt_facts = title_capability.gather(reg, content_id=C1)
+    opt = title_capability.analyze(None, opt_facts)
 
-    # 各 Agent 输出契约与关联一致性
-    assert diag["facts"]["account_id"] == ACCT
-    assert 0 <= diag["diagnosis"].account_health <= 100
-    assert diag["report"]
+    # 契约与关联一致性
+    assert st["facts"]["account_id"] == ACCT
+    assert 0 <= st["strategy"].account_health <= 100
+    assert st["strategy"].strategy_summary
+    assert st["report"]
 
     assert ca["analysis"].content_id == C1
     assert ca["facts"]["content"]["account_id"] == ACCT
     assert 0 <= ca["analysis"].quality_score <= 100
     assert ca["report"]
 
-    assert rec["recommendation"].account_id == ACCT
-    assert isinstance(rec["recommendation"].topics, list)
-    assert rec["report"]
+    assert rec.account_id == ACCT
+    assert isinstance(rec.topics, list)
+    assert topic_capability.render_report(rec, rec_facts)
 
-    assert opt["optimization"].original == "人工智能入门"
-    assert len(opt["optimization"].optimized_titles) == 3
-    assert opt["report"]
-
-    assert st["strategy"].account_id == ACCT
-    assert st["strategy"].strategy_summary
-    assert st["report"]
+    assert opt.original == "人工智能入门"
+    assert len(opt.optimized_titles) == 3
+    assert title_capability.render_report(opt, opt_facts)
 
     # 策略沉淀到 Memory（读-写闭环）
     entries = ctx.memory_store.list_for_account(ACCT)

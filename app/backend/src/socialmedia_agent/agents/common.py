@@ -1,6 +1,6 @@
 """Agent 公共基座（P4-0）。
 
-5 个新 Agent 与 account_diagnosis 复用的助手：
+各 Agent / 内部能力与 API、MCP、Service 复用的助手：
 - invoke_tool：经 ToolRegistry 调用内部 Tool
 - build_facts_prompt：DB 事实 → LLM user 内容（约束只引用注入事实）
 - llm_analyze：LLM 结构化输出；gateway 未配置或调用/校验失败 → 规则兜底

@@ -1,6 +1,6 @@
-"""Title Optimization Agent（P4-4）。"""
+"""Title Optimization 内部能力（P5.5.1，不再作为独立 Agent）。"""
 
-from .graph import TitleOptimizationState, build_title_optimization_graph
+from .nodes import analyze, gather, render_report
 from .schemas import TitleOptimizationOutput
 
-__all__ = ["TitleOptimizationState", "TitleOptimizationOutput", "build_title_optimization_graph"]
+__all__ = ["TitleOptimizationOutput", "gather", "analyze", "render_report"]

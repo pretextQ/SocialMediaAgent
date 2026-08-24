@@ -1,8 +1,10 @@
-"""Title Optimization 节点。
+"""Title Optimization 内部能力（P5.5.1，不再作为独立 Agent）。
 
 gather：content_id 模式取内容标题 + 指标；原始标题模式直接用传入标题；都取标题写作知识
 analyze：LLM 结构化输出（固定 3 条）；失败或未配置 gateway 时规则兜底（确定性模板）
-report：由结构化结果规则渲染人类可读 markdown
+render_report：由结构化结果规则渲染人类可读 markdown
+
+供 API / MCP 直接调用（不再经 LangGraph 图）。
 """
 
 from __future__ import annotations

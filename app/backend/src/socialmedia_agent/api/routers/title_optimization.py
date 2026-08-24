@@ -1,9 +1,8 @@
-"""标题优化接口（P4-4）。
+"""标题优化接口（P5.5.1：内部能力直调，不再经 LangGraph 图）。
 
 POST /api/v1/titles/optimize
 body: { content_id?, title? }（至少提供其一）
-→ 运行 Title Optimization Agent（gather → analyze → report）
-→ 返回 { optimization, report }
+→ gather → analyze → render（契约不变，固定 3 条）
 """
 
 from __future__ import annotations
@@ -11,11 +10,9 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, model_validator
 
-from socialmedia_agent.agents.title_optimization.graph import build_title_optimization_graph
+from socialmedia_agent.agents.title_optimization import nodes as title_capability
 from socialmedia_agent.agents.title_optimization.schemas import TitleOptimizationOutput
-from socialmedia_agent.agents.tools.base import ToolContext
-from socialmedia_agent.agents.tools.catalog import build_core_tools
-from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.content_repo import ContentRepository
 
@@ -42,7 +39,7 @@ class TitleOptimizationResponse(BaseModel):
     "/optimize",
     response_model=TitleOptimizationResponse,
     summary="标题优化",
-    description="运行 Title Optimization Agent（content_id 或原始标题两种模式），返回固定 3 条优化标题 + 说明 + 人类可读报告。gateway 未配置时走规则兜底。",
+    description="运行 Title Optimization 内部能力（content_id 或原始标题两种模式），返回固定 3 条优化标题 + 说明 + 人类可读报告。gateway 未配置时走规则兜底。",
 )
 def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimizationResponse:
     database: Database = request.app.state.database
@@ -53,11 +50,10 @@ def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimiza
         if not content:
             raise HTTPException(status_code=404, detail="content not found")
 
-    ctx = ToolContext(database=database)
-    registry = ToolRegistry()
-    for tool in build_core_tools(ctx):
-        registry.register(tool)
-
-    graph = build_title_optimization_graph(registry, gateway=None)  # 规则兜底；LLM 增强后注入 gateway
-    state = graph.invoke({"content_id": req.content_id, "title": req.title})
-    return TitleOptimizationResponse(optimization=state["optimization"], report=state["report"])
+    registry = build_registry(database)
+    facts = title_capability.gather(registry, content_id=req.content_id, title=req.title)
+    optimization = title_capability.analyze(getattr(request.app.state, "gateway", None), facts)
+    return TitleOptimizationResponse(
+        optimization=optimization,
+        report=title_capability.render_report(optimization, facts),
+    )

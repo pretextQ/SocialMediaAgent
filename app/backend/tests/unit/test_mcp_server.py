@@ -33,12 +33,11 @@ def test_mcp_server_registers_8_tools(tmp_path):
     mcp = create_mcp_server(db, mem)
     names = _tool_names(asyncio.run(mcp.list_tools()))
     assert names == [
-        "diagnose_account",
+        "account_strategy",
         "analyze_content",
         "analyze_trends",
         "recommend_topics",
         "optimize_title",
-        "advise_strategy",
         "list_accounts",
         "list_contents",
     ]
@@ -59,7 +58,7 @@ def test_mcp_server_call_tool(tmp_path):
     r1 = asyncio.run(mcp.call_tool("list_accounts", {"platform": "bilibili"}))
     assert "UP主A" in _result_text(r1)
 
-    r2 = asyncio.run(mcp.call_tool("diagnose_account", {"account_id": "bilibili:90001"}))
+    r2 = asyncio.run(mcp.call_tool("account_strategy", {"account_id": "bilibili:90001"}))
     text = _result_text(r2)
     assert "account_health" in text
     assert "report" in text

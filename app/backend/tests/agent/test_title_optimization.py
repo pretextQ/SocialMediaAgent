@@ -1,4 +1,4 @@
-"""Title Optimization Agent 测试（TDD，P4-4）。
+"""Title Optimization 内部能力测试（TDD，P5.5.1 降级后）。
 
 覆盖：
 - TitleOptimizationOutput 严格 schema：optimized_titles 固定 3 条（min/max 3）
@@ -14,8 +14,11 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
-from socialmedia_agent.agents.title_optimization.graph import build_title_optimization_graph
+from socialmedia_agent.agents.title_optimization import nodes as title_capability
 from socialmedia_agent.agents.title_optimization.schemas import TitleOptimizationOutput
+from socialmedia_agent.agents.tools.base import ToolContext
+from socialmedia_agent.agents.tools.catalog import build_core_tools
+from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.database.engine import create_db_engine
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.account import Account
@@ -64,10 +67,6 @@ def seed_db(tmp_path) -> Database:
 
 
 def make_context(tmp_path):
-    from socialmedia_agent.agents.tools.base import ToolContext
-    from socialmedia_agent.agents.tools.catalog import build_core_tools
-    from socialmedia_agent.agents.tools.registry import ToolRegistry
-
     db = seed_db(tmp_path)
 
     store = InMemoryVectorStore()
@@ -92,6 +91,12 @@ def make_context(tmp_path):
     for tool in build_core_tools(ctx):
         reg.register(tool)
     return ctx, reg, db
+
+
+def run(reg, gateway, content_id=None, title=None):
+    facts = title_capability.gather(reg, content_id=content_id, title=title)
+    out = title_capability.analyze(gateway, facts)
+    return out, title_capability.render_report(out, facts), facts
 
 
 class ScriptedProvider(LLMProvider):
@@ -140,14 +145,12 @@ def test_e2e_content_id_keeps_llm_three_titles(tmp_path):
             '"explanation": "基于标题写作知识优化"}'
         ]
     )
-    graph = build_title_optimization_graph(registry=reg, gateway=make_gateway(provider))
-    state = graph.invoke({"content_id": "bilibili:1001"})
-    out = state["optimization"]
+    out, report, _ = run(reg, make_gateway(provider), content_id="bilibili:1001")
     assert out.original == "人工智能入门"
     assert len(out.optimized_titles) == 3
     assert out.optimized_titles[0] == "入门人工智能，3 个方法速成"
-    assert state["report"]
-    assert "人工智能入门" in state["report"]
+    assert report
+    assert "人工智能入门" in report
 
 
 def test_e2e_raw_title_mode(tmp_path):
@@ -159,12 +162,10 @@ def test_e2e_raw_title_mode(tmp_path):
             '"explanation": "结合标题写作知识"}'
         ]
     )
-    graph = build_title_optimization_graph(registry=reg, gateway=make_gateway(provider))
-    state = graph.invoke({"title": "如何学Python"})
-    out = state["optimization"]
+    out, report, _ = run(reg, make_gateway(provider), title="如何学Python")
     assert out.original == "如何学Python"
     assert len(out.optimized_titles) == 3
-    assert state["report"]
+    assert report
 
 
 def test_llm_wrong_count_falls_back_to_rules(tmp_path):
@@ -173,20 +174,16 @@ def test_llm_wrong_count_falls_back_to_rules(tmp_path):
     provider = ScriptedProvider(
         ['{"original": "人工智能入门", "optimized_titles": ["A", "B"], "explanation": "x"}']
     )
-    graph = build_title_optimization_graph(registry=reg, gateway=make_gateway(provider))
-    state = graph.invoke({"content_id": "bilibili:1001"})
-    out = state["optimization"]
+    out, report, _ = run(reg, make_gateway(provider), content_id="bilibili:1001")
     assert len(out.optimized_titles) == 3
     assert out.original == "人工智能入门"
-    assert state["report"]
+    assert report
 
 
 def test_rule_fallback_deterministic_templates(tmp_path):
     """gateway=None：规则兜底生成固定 3 条模板标题。"""
     ctx, reg, db = make_context(tmp_path)
-    graph = build_title_optimization_graph(registry=reg, gateway=None)
-    state = graph.invoke({"content_id": "bilibili:1001"})
-    out = state["optimization"]
+    out, _, _ = run(reg, None, content_id="bilibili:1001")
     assert out.original == "人工智能入门"
     assert out.optimized_titles == [
         "人工智能入门｜看完秒懂",
@@ -199,12 +196,10 @@ def test_rule_fallback_deterministic_templates(tmp_path):
 def test_llm_failure_falls_back_to_rules(tmp_path):
     ctx, reg, db = make_context(tmp_path)
     provider = ScriptedProvider(["not-json"])
-    graph = build_title_optimization_graph(registry=reg, gateway=make_gateway(provider))
-    state = graph.invoke({"content_id": "bilibili:1001"})
-    out = state["optimization"]
+    out, report, _ = run(reg, make_gateway(provider), content_id="bilibili:1001")
     assert len(out.optimized_titles) == 3
     assert out.original == "人工智能入门"
-    assert state["report"]
+    assert report
 
 
 def test_statistics_injected_into_prompt(tmp_path):
@@ -215,7 +210,6 @@ def test_statistics_injected_into_prompt(tmp_path):
             '{"original": "人工智能入门", "optimized_titles": ["A", "B", "C"], "explanation": "x"}'
         ]
     )
-    graph = build_title_optimization_graph(registry=reg, gateway=make_gateway(provider))
-    graph.invoke({"content_id": "bilibili:1001"})
+    run(reg, make_gateway(provider), content_id="bilibili:1001")
     assert "1000" in provider.last_user_content
     assert "标题写作" in provider.last_user_content

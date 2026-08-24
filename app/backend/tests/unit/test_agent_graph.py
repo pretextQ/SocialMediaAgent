@@ -183,18 +183,26 @@ def test_minimal_graph_routes_title_optimization_agent(tmp_path):
     assert result["report"]
 
 
-def test_minimal_graph_routes_strategy_advisor_agent(tmp_path):
+def test_minimal_graph_routes_account_strategy_agent(tmp_path):
     ctx = make_context(tmp_path)
     state = run_graph(ctx, "制定 bilibili:90001 运营策略")
-    assert state["tool_calls"] == ["agent:strategy_advisor"]
+    assert state["tool_calls"] == ["agent:account_strategy"]
     result = state["result"]
     assert result["account_id"] == "bilibili:90001"
+    assert result["strategy"]["account_health"]
     assert result["strategy"]["strategy_summary"]
     assert result["report"]
+
+
+def test_minimal_graph_routes_diagnosis_intent(tmp_path):
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "账号诊断 bilibili:90001")
+    assert state["tool_calls"] == ["agent:account_strategy"]
+    assert state["result"]["strategy"]["account_health"] is not None
 
 
 def test_minimal_graph_agent_missing_param_returns_hint(tmp_path):
     ctx = make_context(tmp_path)
     state = run_graph(ctx, "制定运营策略")
-    assert state["tool_calls"] == ["agent:strategy_advisor"]
+    assert state["tool_calls"] == ["agent:account_strategy"]
     assert "缺少" in state["result"]

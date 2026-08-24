@@ -1,7 +1,8 @@
-"""LangGraph 最小图：自然语言指令 → 解析 → 调用内部 Tool / Agent → 结果写回 state。
+"""LangGraph 最小图：自然语言指令 → 解析 → 调用内部 Tool / 能力 → 结果写回 state。
 
 P2 用确定性规则路由（不依赖 LLM），保证可测；P3 起由 LLM 决策调用哪个工具。
-P4-6 扩展：Agent 级指令（内容分析/趋势/选题/标题优化/策略）优先路由到对应 Agent 图。
+P4-6 扩展：Agent 级指令（内容分析/趋势/账号策略）优先路由到对应 Agent 图；
+P5.5.1 收敛：账号诊断+策略合并为 account_strategy；标题优化/选题推荐降级为内部能力（直接派发）。
 """
 
 from __future__ import annotations
@@ -10,12 +11,12 @@ import re
 
 from langgraph.graph import END, START, StateGraph
 
+from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.content_analysis.graph import build_content_analysis_graph
 from socialmedia_agent.agents.state import AgentState
-from socialmedia_agent.agents.strategy_advisor.graph import build_strategy_advisor_graph
-from socialmedia_agent.agents.title_optimization.graph import build_title_optimization_graph
+from socialmedia_agent.agents.title_optimization import nodes as title_capability
 from socialmedia_agent.agents.tools.registry import ToolRegistry
-from socialmedia_agent.agents.topic_recommendation.graph import build_topic_recommendation_graph
+from socialmedia_agent.agents.topic_recommendation import nodes as topic_capability
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
 from socialmedia_agent.llm.gateway import LLMGateway
 
@@ -31,13 +32,13 @@ _ROUTING_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"沉淀.*记忆|记录.*策略|保存.*记忆"), "save_operation_memory"),
 ]
 
-# Agent 级路由（P4-6）：优先于 Tool 路由；命中返回 "agent:<name>"
+# Agent / 能力级路由（优先于 Tool 路由）；命中返回 "agent:<name>"
 _AGENT_ROUTING_RULES: list[tuple[re.Pattern, str]] = [
     (re.compile(r"内容分析|分析.*内容质量|内容质量分析"), "content_analysis"),
     (re.compile(r"趋势分析|平台.*趋势|趋势.*平台"), "trend_analysis"),
+    (re.compile(r"账号诊断|账号.*健康|运营策略|策略制定|策略.*建议|制定.*策略"), "account_strategy"),
     (re.compile(r"选题推荐|推荐.*选题|选题.*推荐"), "topic_recommendation"),
     (re.compile(r"标题优化|优化.*标题"), "title_optimization"),
-    (re.compile(r"运营策略|策略制定|策略.*建议"), "strategy_advisor"),
 ]
 
 
@@ -129,7 +130,7 @@ def _invoke_agent(
     text: str,
     gateway: LLMGateway | None = None,
 ) -> dict:
-    """按 Agent 名构建图并执行（gateway=None 时走规则兜底）。"""
+    """按能力名派发：Agent 走 LangGraph 图；降级能力走 gather+analyze 直调。"""
     cid = _extract_account_id(text)
 
     if name == "content_analysis":
@@ -153,36 +154,37 @@ def _invoke_agent(
             "analysis": state["analysis"].model_dump(),
             "report": state["report"],
         }
+    if name == "account_strategy":
+        if not cid:
+            return "缺少 account_id 参数"
+        state = build_account_strategy_graph(registry, gateway).invoke({"account_id": cid})
+        return {
+            "agent": "account_strategy",
+            "account_id": cid,
+            "strategy": state["strategy"].model_dump(),
+            "memory_saved": state.get("memory_saved"),
+            "report": state["report"],
+        }
     if name == "topic_recommendation":
         if not cid:
             return "缺少 account_id 参数"
-        state = build_topic_recommendation_graph(registry, gateway).invoke(
-            {"account_id": cid}
-        )
+        facts = topic_capability.gather(registry, cid)
+        recommendation = topic_capability.analyze(gateway, facts)
         return {
             "agent": "topic_recommendation",
             "account_id": cid,
-            "recommendation": state["recommendation"].model_dump(),
-            "report": state["report"],
+            "recommendation": recommendation.model_dump(),
+            "report": topic_capability.render_report(recommendation, facts),
         }
     if name == "title_optimization":
         if not cid:
             return "缺少 content_id 参数"
-        state = build_title_optimization_graph(registry, gateway).invoke({"content_id": cid})
+        facts = title_capability.gather(registry, content_id=cid)
+        optimization = title_capability.analyze(gateway, facts)
         return {
             "agent": "title_optimization",
             "content_id": cid,
-            "optimization": state["optimization"].model_dump(),
-            "report": state["report"],
+            "optimization": optimization.model_dump(),
+            "report": title_capability.render_report(optimization, facts),
         }
-    if name == "strategy_advisor":
-        if not cid:
-            return "缺少 account_id 参数"
-        state = build_strategy_advisor_graph(registry, gateway).invoke({"account_id": cid})
-        return {
-            "agent": "strategy_advisor",
-            "account_id": cid,
-            "strategy": state["strategy"].model_dump(),
-            "report": state["report"],
-        }
-    return f"未知 Agent：{name}"
+    return f"未知能力：{name}"

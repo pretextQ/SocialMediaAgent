@@ -1,11 +1,18 @@
-"""Topic Recommendation Agent（P4-3）。"""
+"""Topic Recommendation 内部能力（P5.5.1，不再作为独立 Agent）。"""
 
-from .graph import TopicRecommendationState, build_topic_recommendation_graph
+from .nodes import (
+    analyze,
+    build_topic_candidates,
+    gather,
+    render_report,
+)
 from .schemas import RecommendedTopic, TopicRecommendationOutput
 
 __all__ = [
-    "TopicRecommendationState",
     "RecommendedTopic",
     "TopicRecommendationOutput",
-    "build_topic_recommendation_graph",
+    "gather",
+    "build_topic_candidates",
+    "analyze",
+    "render_report",
 ]

@@ -1,26 +1,34 @@
-"""Strategy Advisor Agent 测试（TDD，P4-5）。
+"""Account Strategy Agent 测试（TDD，P5.5.1，合并 Diagnosis + Strategy）。
 
 覆盖：
-- StrategyAdvisorOutput 严格 schema（account_id/strategy_summary 必填）
-- 规则兜底确定性：有内容/空账号两种策略
-- 读-写 Memory 闭环：运行后策略写入 Memory，再次运行能读到
+- AccountStrategyOutput 严格 schema（account_id/strategy_summary 必填，account_health 0-100）
+- DiagnosisOutput.to_diagnosis 子集提取
+- 规则兜底确定性：有内容/空账号两种分档
+- 选题候选注入周计划（topic_candidates → weekly_plan）
+- 读-写 Memory 闭环：策略写入后再次运行能读到
 - e2e：LLM 结构化输出 → 人类报告
 - LLM 失败 → 规则兜底仍满足 schema
 - 统计注入可核验
 """
 
+from datetime import datetime, timezone
+
 import pytest
 from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
-from socialmedia_agent.agents.strategy_advisor.graph import build_strategy_advisor_graph
-from socialmedia_agent.agents.strategy_advisor.schemas import StrategyAdvisorOutput
+from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
+from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput, DiagnosisOutput
+from socialmedia_agent.agents.tools.base import ToolContext
+from socialmedia_agent.agents.tools.catalog import build_core_tools
+from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.database.engine import create_db_engine
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.account import Account
 from socialmedia_agent.domain.content import Content
 from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
 from socialmedia_agent.domain.metric import Metric
+from socialmedia_agent.domain.topic import Topic
 from socialmedia_agent.llm.circuit_breaker import CircuitBreaker
 from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.llm.providers import LLMProvider
@@ -31,6 +39,7 @@ from socialmedia_agent.rag import HashEmbedder, InMemoryVectorStore, Retriever
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 
 def seed_db(tmp_path) -> Database:
@@ -73,14 +82,18 @@ def seed_db(tmp_path) -> Database:
                     source=MetricSource.MEDIACRAWLER,
                 )
             )
+        TopicRepository(session).upsert(
+            Topic(
+                keyword="效率工具测评",
+                platforms=[Platform.BILIBILI],
+                last_seen=datetime.now(timezone.utc),
+                post_count=50,
+            )
+        )
     return db
 
 
 def make_context(tmp_path):
-    from socialmedia_agent.agents.tools.base import ToolContext
-    from socialmedia_agent.agents.tools.catalog import build_core_tools
-    from socialmedia_agent.agents.tools.registry import ToolRegistry
-
     db = seed_db(tmp_path)
 
     store = InMemoryVectorStore()
@@ -124,50 +137,63 @@ def make_gateway(provider: LLMProvider) -> LLMGateway:
     )
 
 
-def test_strategy_advisor_output_schema_strict():
-    out = StrategyAdvisorOutput(
+def test_account_strategy_output_schema_strict():
+    out = AccountStrategyOutput(
         account_id="bilibili:90001",
+        account_health=60,
+        strengths=["更新稳定"],
+        weaknesses=["互动率低"],
+        anomalies=[],
+        recommendations=["优化标题"],
         strategy_summary="稳定更新",
         weekly_plan=["每周 2 条"],
         kpis=["月度播放量 +20%"],
         risks=["互动率低"],
     )
-    assert out.strategy_summary == "稳定更新"
+    assert out.account_health == 60
+    d = out.to_diagnosis()
+    assert isinstance(d, DiagnosisOutput)
+    assert d.account_health == 60
+    assert d.strengths == ["更新稳定"]
 
     with pytest.raises(ValidationError):
-        StrategyAdvisorOutput(account_id="x")  # strategy_summary 必填
+        AccountStrategyOutput(account_id="x", account_health=200, strategy_summary="s")
     with pytest.raises(ValidationError):
-        StrategyAdvisorOutput(strategy_summary="s")  # account_id 必填
+        AccountStrategyOutput(account_id="x", account_health=50)  # strategy_summary 必填
+    with pytest.raises(ValidationError):
+        AccountStrategyOutput(account_health=50, strategy_summary="s")  # account_id 必填
 
 
-def test_rule_fallback_with_content(tmp_path):
+def test_rule_fallback_with_content_and_topic_injection(tmp_path):
     ctx, reg, db = make_context(tmp_path)
-    graph = build_strategy_advisor_graph(registry=reg, gateway=None)
+    graph = build_account_strategy_graph(registry=reg, gateway=None)
     state = graph.invoke({"account_id": "bilibili:90001"})
     out = state["strategy"]
     assert out.account_id == "bilibili:90001"
-    assert "2 条" in out.strategy_summary
-    assert out.weekly_plan
-    assert out.kpis
-    assert out.risks
+    assert out.account_health == 60  # avg_views=750 → 60 档
+    assert out.strategy_summary
+    assert "750" in out.strategy_summary
+    assert out.weekly_plan[0] == "优先制作热门选题：效率工具测评"  # 选题候选注入周计划
+    assert out.kpis and out.risks
     assert state["report"]
     assert "UP主A" in state["report"]
+    assert "账号健康度" in state["report"]
 
 
 def test_rule_fallback_empty_account(tmp_path):
     ctx, reg, db = make_context(tmp_path)
-    graph = build_strategy_advisor_graph(registry=reg, gateway=None)
+    graph = build_account_strategy_graph(registry=reg, gateway=None)
     state = graph.invoke({"account_id": "weibo:90002"})
     out = state["strategy"]
+    assert out.account_health == 30
     assert "尚无内容产出" in out.strategy_summary
-    assert out.weekly_plan
-    assert out.risks
+    assert "近期无内容产出" in out.weaknesses
+    assert out.weekly_plan and out.risks
 
 
 def test_memory_write_read_closed_loop(tmp_path):
-    """运行后策略写入 Memory；再次运行 gather 能读到已沉淀的策略。"""
     ctx, reg, db = make_context(tmp_path)
-    graph = build_strategy_advisor_graph(registry=reg, gateway=None)
+    graph = build_account_strategy_graph(registry=reg, gateway=None)
 
     s1 = graph.invoke({"account_id": "bilibili:90001"})
     summary1 = s1["strategy"].strategy_summary
@@ -187,13 +213,16 @@ def test_e2e_with_gateway(tmp_path):
     ctx, reg, db = make_context(tmp_path)
     provider = ScriptedProvider(
         [
-            '{"account_id": "bilibili:90001", "strategy_summary": "聚焦AI内容并稳定更新", '
+            '{"account_id": "bilibili:90001", "account_health": 70, '
+            '"strengths": ["更新稳定"], "weaknesses": ["互动率低"], "anomalies": [], '
+            '"recommendations": ["优化标题"], "strategy_summary": "聚焦AI内容并稳定更新", '
             '"weekly_plan": ["每周3条AI教程"], "kpis": ["月播放量提升30%"], "risks": ["同质化"]}'
         ]
     )
-    graph = build_strategy_advisor_graph(registry=reg, gateway=make_gateway(provider))
+    graph = build_account_strategy_graph(registry=reg, gateway=make_gateway(provider))
     state = graph.invoke({"account_id": "bilibili:90001"})
     out = state["strategy"]
+    assert out.account_health == 70
     assert out.strategy_summary == "聚焦AI内容并稳定更新"
     assert out.weekly_plan == ["每周3条AI教程"]
     assert state["report"]
@@ -203,9 +232,10 @@ def test_e2e_with_gateway(tmp_path):
 def test_llm_failure_falls_back_to_rules(tmp_path):
     ctx, reg, db = make_context(tmp_path)
     provider = ScriptedProvider(["not-json"])
-    graph = build_strategy_advisor_graph(registry=reg, gateway=make_gateway(provider))
+    graph = build_account_strategy_graph(registry=reg, gateway=make_gateway(provider))
     state = graph.invoke({"account_id": "bilibili:90001"})
-    assert isinstance(state["strategy"], StrategyAdvisorOutput)
+    assert isinstance(state["strategy"], AccountStrategyOutput)
+    assert 0 <= state["strategy"].account_health <= 100
     assert state["strategy"].strategy_summary
     assert state["report"]
 
@@ -214,11 +244,12 @@ def test_statistics_injected_into_prompt(tmp_path):
     ctx, reg, db = make_context(tmp_path)
     provider = ScriptedProvider(
         [
-            '{"account_id": "bilibili:90001", "strategy_summary": "s", '
-            '"weekly_plan": [], "kpis": [], "risks": []}'
+            '{"account_id": "bilibili:90001", "account_health": 50, '
+            '"strategy_summary": "s", "strengths": [], "weaknesses": [], "anomalies": [], '
+            '"recommendations": [], "weekly_plan": [], "kpis": [], "risks": []}'
         ]
     )
-    graph = build_strategy_advisor_graph(registry=reg, gateway=make_gateway(provider))
+    graph = build_account_strategy_graph(registry=reg, gateway=make_gateway(provider))
     graph.invoke({"account_id": "bilibili:90001"})
     assert "1500" in provider.last_user_content
     assert "2" in provider.last_user_content

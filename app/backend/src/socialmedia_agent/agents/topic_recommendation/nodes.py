@@ -1,9 +1,12 @@
-"""Topic Recommendation 节点。
+"""Topic Recommendation 内部能力（P5.5.1 起不再作为独立 Agent）。
 
 gather：经内部 Tool 收集 DB 事实（账号资料 / 已有内容 / 趋势话题 / 知识库）
+build_topic_candidates：确定性候选生成（趋势话题优先 + 知识库兜底 + 与已有内容去重）
 analyze：LLM 结构化输出；失败或未配置 gateway 时规则兜底（确定性）；
         最终对 topics 硬去重（剔除与已有内容标题重复的选题），杜绝重复/编造
-report：由结构化结果规则渲染人类可读 markdown
+render_report：由结构化结果规则渲染人类可读 markdown
+
+供 API / MCP / Account Strategy Agent 直接调用（不再经 LangGraph 图）。
 """
 
 from __future__ import annotations
@@ -74,9 +77,8 @@ def _finalize_topics(
     return result
 
 
-def _rule_fallback(facts: dict) -> TopicRecommendationOutput:
-    """确定性规则兜底：趋势话题（DB 事实）优先，其次知识库标题。"""
-    account_id = facts.get("account_id", "")
+def build_topic_candidates(facts: dict) -> list[RecommendedTopic]:
+    """确定性候选生成：趋势话题（DB 事实）优先，其次知识库标题，与已有内容去重。"""
     existing = _existing_titles(facts)
     topics: list[RecommendedTopic] = []
 
@@ -109,8 +111,16 @@ def _rule_fallback(facts: dict) -> TopicRecommendationOutput:
             )
             if len(topics) >= MAX_TOPICS:
                 break
+    return topics
 
-    return TopicRecommendationOutput(account_id=account_id, topics=topics)
+
+def _rule_fallback(facts: dict) -> TopicRecommendationOutput:
+    """确定性规则兜底：候选生成 + 最终去重。"""
+    account_id = facts.get("account_id", "")
+    return TopicRecommendationOutput(
+        account_id=account_id,
+        topics=_finalize_topics(build_topic_candidates(facts), _existing_titles(facts)),
+    )
 
 
 def render_report(recommendation: TopicRecommendationOutput, facts: dict) -> str:
