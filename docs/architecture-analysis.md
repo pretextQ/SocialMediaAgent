@@ -442,18 +442,22 @@ CI 强制运行。
 
 ### P1 任务
 
-- [ ] 1.1 搭建 MediaCrawler 隔离 venv + 依赖清单；单平台（建议先 **bilibili 或 xiaohongshu**，登录/风控相对温和）命令行跑通
-- [ ] 1.2 `runner.py`：subprocess 调度（超时/重试/日志）
-- [ ] 1.3 `reader.py`：显式 schema 读取中转 SQLite（明确字段映射，禁止列名探测）
-- [ ] 1.4 `schemas.py`：中转库结构与目标 domain 的字段映射表
-- [ ] 1.5 **Normalizer 完整实现**：数值口径（"万/亿"）、时间格式、ID 派生、平台规则注册
-- [ ] 1.6 `repositories`：Account/Content/Metric 增查；幂等 upsert（canonical_id+captured_at 去重）
-- [ ] 1.7 `IngestService`：单平台抓取→读取→归一→入库全链路
-- [ ] 1.8 FastAPI：`/api/v1/accounts`、`/contents`、`/metrics` 查询接口
-- [ ] 1.9 CLI：`ingest` 命令（保证流程可重复执行）
-- [ ] 1.10 测试：normalizer 单测、ingest 集成测试（fixture 假爬虫）、幂等测试、API 集成测试
+- [x] 1.1 搭建 MediaCrawler 隔离 venv + 依赖清单（venv 已建、`requirements-crawler.txt` 已出；真机跑通阻塞于依赖未装）
+- [x] 1.2 `runner.py`：subprocess 调度（超时/重试/日志）
+- [x] 1.3 `reader.py`：显式 schema 读取中转 SQLite（明确字段映射，禁止列名探测）
+- [x] 1.4 `schemas.py`：中转库结构与目标 domain 的字段映射表
+- [x] 1.5 **Normalizer 完整实现**：数值口径（"万/亿"）、时间格式、ID 派生、平台规则注册
+- [x] 1.6 `repositories`：Account/Content/Metric 增查；幂等 upsert（canonical_id+captured_at 去重）
+- [x] 1.7 `IngestService`：单平台抓取→读取→归一→入库全链路
+- [x] 1.8 FastAPI：`/api/v1/accounts`、`/contents`、`/metrics` 查询接口
+- [x] 1.9 CLI：`ingest` 命令（保证流程可重复执行）
+- [x] 1.10 测试：normalizer 单测、ingest 集成测试（fixture 假爬虫）、幂等测试、API 集成测试（全量 110 passed）
 - [ ] 1.11 端到端验证：真实数据入库 → API 查询 → 关联成立 → `pytest` 全绿
 - [ ] 1.12 **DoD 验收（第七节 P1 九条逐项打勾）**
+
+> **状态（2026-08-24 记录）**：1.1~1.10 已完成并提交，全量 `pytest` 110 passed。
+> **阻塞项**：1.11/1.12 依赖 crawler venv（`.venv-crawler`）安装 MediaCrawler 依赖 + `playwright install chromium`（命令见 `app/backend/requirements-crawler.txt`）。用户确认改由 AI 装，但安装命令被用户中止，暂缓。
+> **决定**：P1 真机验收延后，优先推进 P2（Agent 内核）。1.12 中不依赖真机的条款（Normalizer/关联查询/canonical_id/API/幂等，即 DoD 3~9 条）已由现有测试覆盖，待 1.11 完成后统一逐条打勾。
 
 ---
 

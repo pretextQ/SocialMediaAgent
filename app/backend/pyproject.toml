@@ -8,6 +8,10 @@ dependencies = [
     "sqlalchemy>=2.0",
     "fastapi>=0.110",
     "httpx>=0.27",
+    "langgraph>=1.0",
+    "faiss-cpu>=1.10",
+    "numpy>=2.0",
+    "openai>=2.0",
 ]
 
 [project.optional-dependencies]
