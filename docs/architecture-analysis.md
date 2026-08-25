@@ -371,13 +371,21 @@ Memory：写入=每次诊断/策略执行后沉淀账号特征；读取=Agent �
 
 ### P5
 
-- [x] 调度与周报运行正常（`services/scheduler.py` APScheduler 每周一 09:00 + `services/weekly_report.py` 聚合近 7 天表现并复用诊断/策略 Agent，`tests/unit/test_scheduler.py`、`test_weekly_report.py`）
+- [x] 调度与周报运行正常（`services/scheduler.py` APScheduler 每周一 09:00 + `services/weekly_report.py` 聚合近 7 天表现并复用 Account Strategy Agent，`tests/unit/test_scheduler.py`、`test_weekly_report.py`）
 - [x] API 文档完整（6 个 Agent 端点 response_model 自文档化 + `docs/api.md` 接口清单 + `tests/integration/test_openapi.py`）
-- [x] MCP Server 实现 5~8 个核心 Tool（基于已验证的内部 Tool，非机械移植）：`services/mcp_server.py` FastMCP stdio，8 个 Tool（诊断/内容分析/趋势/选题/标题/策略/账号/内容），`tests/unit/test_mcp_{tools,server}.py`
+- [x] MCP Server 实现 5~8 个核心 Tool（基于已验证的内部 Tool，非机械移植）：`services/mcp_server.py` FastMCP stdio，7 个 Tool（account_strategy/内容分析/趋势/选题/标题/账号/内容，P5.5.1 合并诊断+策略），`tests/unit/test_mcp_{tools,server}.py`
 - [ ] 自有账号接入（经 ADR）完成并有测试（**ADR-0004 已决策**：浏览器自动化不采用、官方能力优先 + Python 重写只读适配器；适配器实现+测试为后续子任务）
 
-> **状态（2026-08-24 记录）**：P5 前三项 DoD 达成，全量 `pytest` 231 passed。
-> 新依赖：`apscheduler>=3.10`、`mcp>=1.0,<2.0`（已批准并入 pyproject）。
+> **状态（2026-08-25 更新）**：P5 前三项 DoD 达成，全量 `pytest` 254 passed。
+> 新依赖：`apscheduler>=3.10`、`mcp>=1.0,<2.0`、`pydantic-settings>=2.0`（并入 pyproject）。
+>
+> **P5.5 架构收敛（2026-08-25）**：
+> - **Agent 收敛**：6 Agent → 3 核心 Agent（`account_strategy` 合并 诊断+策略）+ 2 内部能力（标题优化/选题推荐降级，删 graph.py）；HTTP API 契约零破坏（`/diagnosis` 为兼容 shim）；MCP 8→7。
+> - **配置层**：`config.py`（pydantic-settings 三层回退）+ `.env.example`（LLM 密钥不硬编码）。
+> - **LLM Gateway 注入**：`llm/factory.build_gateway` + `create_app(gateway=)` 依赖注入（API/MCP/周报），无密钥规则兜底，mock 注入测试链路。
+> - **RAG seed**：`seed-knowledge` CLI + `FaissVectorStore.save/load` 持久化 + 可选 `OpenAICompatEmbedder`；`create_app(retriever=)` 注入，Agent 可查询知识库。
+> - **日志**：`logging_config` + Connector/LLM/Agent/RAG/Memory 分层日志（禁输出密钥/消息内容）。
+>
 > **待办**：自有账号只读适配器（`connectors/matrixflow_ref/`）按 ADR-0004 实现 + 测试；发布写操作另行合规评估。
 
 ### P6
