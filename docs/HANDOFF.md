@@ -85,6 +85,13 @@
 - [ ] Alembic 迁移缺失（现用 `create_all`）：决策"补 Alembic"或"明确放弃并记录"
 - [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
 
+### H. 前端（规划已就绪，未实施——见 `docs/plan-frontend.md`）
+- [ ] 后端配套小改动（前置，均小）：`GET /api/v1/reports`（周报列表）、`GET /api/v1/system/status`、Agent 响应加 `source: "llm"|"rules"`；可选数据录入 POST 端点
+- [ ] F1 脚手架：`app/frontend/`（Vite + React 18 + TS + Tailwind + Recharts）+ 布局导航 + api client 封装
+- [ ] F2 核心演示页：诊断与策略 / 标题优化 / 内容分析
+- [ ] F3 数据与辅助：数据页 / 趋势 / 选题 / 系统状态
+- [ ] F4 收尾：周报页 + 来源标识 + README 截图（演示全流程可点）
+
 ## 7. 已知阻塞 / 问题
 
 - **crawler venv 未装**（用户此前中止过一次安装）→ 阻塞 P1.11/1.12、真机演示
@@ -102,6 +109,7 @@
 4. **D 自有账号适配器**（P5 DoD 打勾）
 5. **E P6 Evaluation**（依赖 B/C 的数据与链路）
 6. **F P7**（部署/README/合规声明）
+7. **H 前端**（可选，规划见 `docs/plan-frontend.md`；先做后端 3 个小改动，再 F1 脚手架 → F2 核心页）
 
 > 严格遵循 AGENTS.md：每次一个小任务 → 先写测试（TDD）→ 跑测试 → `git diff` → commit + push。
 
