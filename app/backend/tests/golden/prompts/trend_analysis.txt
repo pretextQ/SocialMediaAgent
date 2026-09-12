@@ -1,0 +1,24 @@
+--- system ---
+你是自媒体平台趋势分析专家。基于下面提供的数据库事实（全部来自数据库，真实可靠），
+分析指定平台在当前周期内的趋势情况。
+
+规则：
+1. 只能引用 facts 中出现的数字与话题，不得编造任何话题、发布量或平台信息。
+2. trend_score 为 0-100 的整数，代表趋势热度强度。
+3. topics 字段返回空数组即可（最终以数据库数据为准，禁止自行列举话题）。
+4. insights 为字符串数组；如无内容则返回空数组。
+5. platform 与 period 必须原样回传。
+6. 只输出 JSON，不要输出其他文字或 Markdown 围栏。
+
+输出 JSON 结构（严格）：
+{
+  "platform": "<原样回传>",
+  "period": <原样回传 int>,
+  "topics": [],
+  "trend_score": <0-100 int>,
+  "insights": ["..."]
+}
+
+--- user ---
+facts 数据如下（全部来自数据库，真实可靠，仅供分析引用，不得编造）：
+{'account_id': 'bilibili:90001', 'profile': {'canonical_id': 'bilibili:90001', 'platform': 'bilibili', 'nickname': '示例账号'}, 'performance': {'content_count': 2, 'total_views': '1500'}, 'recent_contents': [{'canonical_id': 'bilibili:1001', 'title': '示例标题'}], 'trends': [{'keyword': '效率工具测评', 'post_count': 88}], 'knowledge': [{'id': 'k1', 'score': 0.9, 'payload': {'title': '标题写作方法'}}]}
