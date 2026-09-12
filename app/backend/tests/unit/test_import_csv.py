@@ -18,6 +18,7 @@ from socialmedia_agent.domain.enums import MetricSource, MetricType
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 HEADER = [
     "platform", "account_platform_id", "account_nickname", "content_platform_id",
@@ -219,3 +220,79 @@ def test_import_csv_rejects_unknown_source(tmp_path):
     csv_path = write_csv(tmp_path / "data.csv", sample_rows())
     with pytest.raises(SystemExit):
         main(["--input", str(csv_path), "--source", "not-a-source"])
+
+
+# ---------------------------------------------------------------------------
+# --topics：趋势分析需要 Topic 数据（demo 库此前 topics 为空，/trends/analysis 永远返回空）
+# ---------------------------------------------------------------------------
+
+TOPIC_HEADER = ["keyword", "platforms", "post_count", "title", "summary", "last_seen"]
+
+
+def write_topic_csv(path, rows):
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(TOPIC_HEADER)
+        writer.writerows(rows)
+    return path
+
+
+def test_import_topics_persists_topics(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    topics_path = write_topic_csv(tmp_path / "topics.csv", [
+        ["效率工具测评", "bili", "88", "效率工具测评", "近 7 天热门", "2026-09-10T10:00:00Z"],
+        ["Agent 工程化", "bili|zhihu", "50", "", "", "2026-09-11T10:00:00Z"],
+    ])
+    db_url = f"sqlite:///{tmp_path / 'topics.db'}"
+
+    assert main(["--input", str(csv_path), "--topics", str(topics_path), "--db-url", db_url]) == 0
+
+    database = Database(url=db_url)
+    with database.session() as session:
+        topics = TopicRepository(session).list()
+    by_kw = {t.keyword: t for t in topics}
+    assert set(by_kw) == {"效率工具测评", "Agent 工程化"}
+    assert by_kw["效率工具测评"].post_count == 88
+    assert by_kw["Agent 工程化"].platforms == ["bilibili", "zhihu"]
+
+
+def test_import_topics_is_idempotent(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    topics_path = write_topic_csv(tmp_path / "topics.csv", [
+        ["效率工具测评", "bili", "88", "", "", ""],
+    ])
+    db_url = f"sqlite:///{tmp_path / 'topics2.db'}"
+
+    assert main(["--input", str(csv_path), "--topics", str(topics_path), "--db-url", db_url]) == 0
+    assert main(["--input", str(csv_path), "--topics", str(topics_path), "--db-url", db_url]) == 0
+
+    database = Database(url=db_url)
+    with database.session() as session:
+        assert len(TopicRepository(session).list()) == 1
+
+
+def test_import_topics_invalid_row_writes_nothing(tmp_path):
+    """整体校验同样覆盖 topics：非法话题行不能让内容先落库。"""
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    topics_path = write_topic_csv(tmp_path / "topics.csv", [
+        ["", "bili", "88", "", "", ""],  # 缺 keyword
+    ])
+    db_file = tmp_path / "topics_bad.db"
+
+    assert main(["--input", str(csv_path), "--topics", str(topics_path),
+                 "--db-url", f"sqlite:///{db_file}"]) == 1
+
+    assert not db_file.exists()
+
+
+def test_import_topics_unknown_platform_writes_nothing(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    topics_path = write_topic_csv(tmp_path / "topics.csv", [
+        ["话题", "not-a-platform", "1", "", "", ""],
+    ])
+    db_file = tmp_path / "topics_bad2.db"
+
+    assert main(["--input", str(csv_path), "--topics", str(topics_path),
+                 "--db-url", f"sqlite:///{db_file}"]) == 1
+
+    assert not db_file.exists()

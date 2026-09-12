@@ -85,12 +85,21 @@ cd app/backend
 如果只是想**验证链路或做演示**，不必手抄 —— 用生成器造一份：
 
 ```powershell
-.venv/Scripts/python.exe seed/generate_demo_data.py --output seed/demo_synthetic.csv
-.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/demo_synthetic.csv --db-url sqlite:///data/sma_demo.db --source synthetic
+.venv/Scripts/python.exe seed/generate_demo_data.py --output seed/demo_synthetic.csv --topics-output seed/demo_synthetic_topics.csv
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/demo_synthetic.csv --topics seed/demo_synthetic_topics.csv --db-url sqlite:///data/sma_demo.db --source synthetic
 ```
 
-生成 2 个账号共 50 条内容：`AI 科普站`（稳定增长 + 一次爆款）、`效率工具研究所`（持续下滑）。
+生成 2 个账号共 50 条内容：`AI 科普站`（稳定增长 + 一次爆款）、`效率工具研究所`（持续下滑）；
+另外生成 **5 条话题**并经 `--topics` 导入。
+
+> **为什么要有话题**：趋势分析（`/trends/analysis`）与选题推荐的「趋势优先」分支都依赖 Topic 数据。
+> 此前生成器不产出 Topic，导致 demo 库的 `topics` 表为空、趋势接口**永远返回空结果**——
+> 接口「能跑」但没有任何东西可分析。
+
 日期相对运行当天生成（不会过期），固定随机种子（可复现）。
+
+`--topics` CSV 的列：`keyword`（必填）、`platforms`（`bili|zhihu` 这类多平台）、`post_count`、`title`、`summary`、`last_seen`
+（留空则取当前时间——话题本就该是「近期」的，否则会被趋势查询的时间窗口过滤掉）。
 
 **纪律（必须遵守）**：
 

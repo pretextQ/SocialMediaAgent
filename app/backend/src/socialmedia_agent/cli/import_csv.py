@@ -16,19 +16,24 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from socialmedia_agent.connectors.base import RawContent
 from socialmedia_agent.connectors.mapper import RawToDomainMapper
 from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
-from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType
+from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
+from socialmedia_agent.domain.topic import Topic
 from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.normalizers import platform_from_code
+from socialmedia_agent.normalizers.time import DefaultTimeNormalizer
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 METRIC_COLUMNS: dict[str, MetricType] = {
     "views": MetricType.VIEWS,
@@ -39,6 +44,11 @@ METRIC_COLUMNS: dict[str, MetricType] = {
 }
 
 REQUIRED_COLUMNS = ("platform", "content_platform_id", "content_type")
+
+# 话题 CSV 的列（趋势分析 / 选题推荐用）。keyword 必填，其余可空。
+TOPIC_REQUIRED_COLUMNS = ("keyword",)
+
+_TIME = DefaultTimeNormalizer()
 
 # 依次尝试：Excel 的「CSV UTF-8」带 BOM，UTF-8，以及中文 Windows Excel 默认的 GBK
 ENCODINGS = ("utf-8-sig", "utf-8", "gb18030")
@@ -53,6 +63,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", required=True, help="CSV 文件路径")
     parser.add_argument("--db-url", default=None, help="覆盖数据库 URL（演示/测试用）")
     parser.add_argument("--dry-run", action="store_true", help="只校验 CSV 不写库")
+    parser.add_argument(
+        "--topics",
+        default=None,
+        help="可选：话题 CSV（列 keyword,platforms,post_count,title,summary,last_seen）",
+    )
     parser.add_argument(
         "--source",
         default=MetricSource.MANUAL.value,
@@ -107,6 +122,73 @@ def row_to_raw(
     )
 
 
+def topic_row_to_domain(
+    row: dict[str, str | None],
+    line_no: int,
+    now: datetime | None = None,
+) -> Topic:
+    """话题 CSV 一行 -> Topic 领域模型。
+
+    `last_seen` 留空时取当前时间——种子/演示数据里话题本来就该是「近期」的，
+    否则趋势查询的时间窗口会把它过滤掉（这正是 demo 库趋势为空的成因）。
+    """
+    for column in TOPIC_REQUIRED_COLUMNS:
+        if not (row.get(column) or "").strip():
+            raise CsvImportError(f"第 {line_no} 行话题缺少必填列 {column!r}")
+
+    keyword = row["keyword"].strip()
+
+    platforms: list[Platform] = []
+    platforms_raw = (row.get("platforms") or "").strip()
+    if platforms_raw:
+        for token in re.split(r"[|,;/]", platforms_raw):
+            code = token.strip()
+            if not code:
+                continue
+            platform = platform_from_code(code)
+            if platform is None:
+                raise CsvImportError(f"第 {line_no} 行话题平台代号无法识别: {code!r}")
+            if platform not in platforms:
+                platforms.append(platform)
+
+    post_raw = (row.get("post_count") or "").strip()
+    post_count = 0
+    if post_raw:
+        try:
+            post_count = int(float(post_raw))
+        except ValueError as exc:
+            raise CsvImportError(f"第 {line_no} 行话题 post_count 非法: {post_raw!r}") from exc
+
+    last_seen_raw = (row.get("last_seen") or "").strip()
+    if last_seen_raw:
+        last_seen = _TIME.normalize(last_seen_raw)
+        if last_seen is None:
+            raise CsvImportError(f"第 {line_no} 行话题 last_seen 无法解析: {last_seen_raw!r}")
+    else:
+        last_seen = now or datetime.now(timezone.utc)
+
+    def clean(key: str) -> str | None:
+        value = (row.get(key) or "").strip()
+        return value or None
+
+    return Topic(
+        keyword=keyword,
+        title=clean("title"),
+        platforms=platforms,
+        last_seen=last_seen,
+        post_count=post_count,
+        summary=clean("summary"),
+    )
+
+
+def read_topics(path: Path) -> list[Topic]:
+    """读取话题 CSV 并整体校验。"""
+    return [
+        topic_row_to_domain(row, line_no)
+        for line_no, row in enumerate(read_rows(path), start=2)
+    ]
+
+
 def read_rows(path: Path) -> list[dict[str, str | None]]:
     """读取 CSV，自动兼容 Excel 常见的几种编码。
 
@@ -154,8 +236,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[import-csv] 数据错误: {exc}", file=sys.stderr)
         return 1
 
+    topics: list[Topic] = []
+    if args.topics:
+        topics_path = Path(args.topics)
+        if not topics_path.exists():
+            print(f"[import-csv] 话题文件不存在: {topics_path}", file=sys.stderr)
+            return 1
+        try:
+            topics = read_topics(topics_path)
+        except CsvImportError as exc:
+            print(f"[import-csv] 话题数据错误: {exc}", file=sys.stderr)
+            return 1
+
     if args.dry_run:
-        print(f"[import-csv] 校验通过（dry-run，未写库）：{len(raws)} 行")
+        print(
+            f"[import-csv] 校验通过（dry-run，未写库）："
+            f"{len(raws)} 行内容 / {len(topics)} 条话题"
+        )
         return 0
 
     database = Database(url=args.db_url)
@@ -167,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
         account_repo = AccountRepository(session)
         content_repo = ContentRepository(session)
         metric_repo = MetricRepository(session)
+        topic_repo = TopicRepository(session)
         for raw in raws:
             account, content, metric_items = mapper.map(raw)
             if account is not None:
@@ -177,16 +275,20 @@ def main(argv: list[str] | None = None) -> int:
             for metric in metric_items:
                 metric_repo.upsert(metric)
                 metrics += 1
+        for topic in topics:
+            topic_repo.upsert(topic)
 
     # 汇报库内实际数量（去重后），避免把"处理次数"误读成"新增条数"
     with database.session() as session:
         stored_accounts = len(AccountRepository(session).list(limit=10**9))
         stored_contents = len(ContentRepository(session).list(limit=10**9))
         stored_metrics = len(MetricRepository(session).list(limit=10**9))
+        stored_topics = len(TopicRepository(session).list(limit=10**9))
 
     print(
         f"[import-csv] 完成 处理行数={len(raws)} | "
-        f"库内 accounts={stored_accounts} contents={stored_contents} metrics={stored_metrics} | "
+        f"库内 accounts={stored_accounts} contents={stored_contents} "
+        f"metrics={stored_metrics} topics={stored_topics} | "
         f"source={source.value} -> {database.url}"
     )
     return 0

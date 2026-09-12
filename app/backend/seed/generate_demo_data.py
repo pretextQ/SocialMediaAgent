@@ -30,6 +30,27 @@ HEADER = [
     "views", "likes", "comments", "shares", "favorites",
 ]
 
+# 话题（Topic）CSV —— 趋势分析与选题推荐需要它。
+# 此前生成器不产出 Topic，导致 demo 库 topics 为空、/trends/analysis 永远返回空结果。
+TOPIC_HEADER = ["keyword", "platforms", "post_count", "title", "summary", "last_seen"]
+
+TOPICS = [
+    ("效率工具测评", "bili", 88, "近 7 天效率工具类话题热度"),
+    ("RAG 检索增强", "bili", 120, "检索增强生成相关讨论持续走高"),
+    ("Agent 工作流", "bili", 65, "智能体编排与工具调用"),
+    ("大模型评测", "bili|zhihu", 47, "模型能力对比与评测方法"),
+    ("自动化办公", "bili", 39, "办公自动化与脚本化实践"),
+]
+
+
+def build_topic_rows(now: datetime) -> list[list[str]]:
+    """话题行：last_seen 取运行当天，保证落在趋势查询的时间窗口内。"""
+    stamp = now.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return [
+        [keyword, platforms, str(post_count), keyword, summary, stamp]
+        for keyword, platforms, post_count, summary in TOPICS
+    ]
+
 ACCOUNTS = [
     {
         "platform": "bili",
@@ -109,7 +130,12 @@ def build_rows(account: dict, rng: random.Random, now: datetime) -> list[list[st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="生成合成演示数据（SYNTHETIC）")
-    parser.add_argument("--output", default="seed/demo_synthetic.csv", help="输出 CSV 路径")
+    parser.add_argument("--output", default="seed/demo_synthetic.csv", help="输出内容 CSV 路径")
+    parser.add_argument(
+        "--topics-output",
+        default="seed/demo_synthetic_topics.csv",
+        help="输出话题 CSV 路径（供 import_csv --topics 使用）",
+    )
     parser.add_argument("--seed", type=int, default=20260912, help="随机种子（保证可复现）")
     args = parser.parse_args()
 
@@ -127,7 +153,16 @@ def main() -> int:
         writer.writerow(HEADER)
         writer.writerows(all_rows)
 
+    topics_out = Path(args.topics_output)
+    topics_out.parent.mkdir(parents=True, exist_ok=True)
+    topic_rows = build_topic_rows(now)
+    with topics_out.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(TOPIC_HEADER)
+        writer.writerows(topic_rows)
+
     print(f"[generate-demo] 已生成 {len(all_rows)} 行 -> {out}")
+    print(f"[generate-demo] 已生成 {len(topic_rows)} 条话题 -> {topics_out}")
     print("[generate-demo] 这是 SYNTHETIC 数据，导入时必须用 --source synthetic")
     by_account: dict[str, list[list[str]]] = {}
     for row in all_rows:
