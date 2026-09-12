@@ -279,7 +279,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 ## 已知限制
 
 - **工具 / 路由决策默认仍是确定性路径**：`account_strategy` 的 gather 与最小图的指令路由都支持 `agentic=True` 由 LLM 决策（分别见 `agents/tool_loop.py`、`agents/router.py`），失败或参数非法自动回退；两处默认值均为关闭。
-- **评测覆盖 4/5**：已有「工具选择质量」、「数据准确性」（数字是否可溯源）、「RAG 检索质量」（确定性、无需密钥）与「Prompt 回归」（golden 快照）；仅「Agent 输出质量」尚未评测。
+- **评测覆盖 5/5**：工具选择质量、数据准确性（数字是否可溯源）、RAG 检索质量（确定性、无需密钥）、Prompt 回归（golden 快照）、输出质量（LLM 评委，**分数不是 ground truth**）。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。

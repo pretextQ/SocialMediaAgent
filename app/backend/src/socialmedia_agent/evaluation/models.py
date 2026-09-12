@@ -63,6 +63,37 @@ class EvalReport:
 
 
 @dataclass(frozen=True)
+class QualityCase:
+    """一条输出质量用例：agent 类型（account / content）+ 目标 id。"""
+
+    id: str
+    kind: str  # account | content
+    target_id: str
+    note: str = ""
+
+
+@dataclass
+class QualityOutcome:
+    case_id: str
+    kind: str
+    target_id: str
+    run_index: int
+    judgement: "QualityJudgement | None"
+    report: str
+
+
+@dataclass
+class QualityReport:
+    outcomes: list["QualityOutcome"] = field(default_factory=list)
+    case_count: int = 0
+    runs: int = 0
+    judged_count: int = 0
+    failed_count: int = 0
+    mean_overall: float = 0.0
+    std_overall: float = 0.0
+
+
+@dataclass(frozen=True)
 class GroundingCase:
     """一条数据准确性用例：agent 类型（account / content）+ 目标 id。"""
 

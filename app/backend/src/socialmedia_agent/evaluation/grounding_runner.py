@@ -18,8 +18,6 @@ import statistics
 import sys
 from pathlib import Path
 
-from socialmedia_agent.agents.account_strategy import nodes as strategy_nodes
-from socialmedia_agent.agents.content_analysis import nodes as content_nodes
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.database.session import Database
@@ -28,6 +26,7 @@ from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import build_memory_store
 from socialmedia_agent.memory.summarizer import Summarizer
 
+from .agent_output import run_agent_output
 from .grounding import score_grounding
 from .models import GroundingCase, GroundingOutcome, GroundingReport
 
@@ -54,16 +53,7 @@ def run_case(
     gateway: LLMGateway | None,
     run_index: int = 0,
 ) -> GroundingOutcome:
-    if case.kind == "account":
-        facts = strategy_nodes.gather(registry, case.target_id)
-        result = strategy_nodes.analyze(gateway, facts)
-        report = strategy_nodes.render_report(result, facts)
-    elif case.kind == "content":
-        facts = content_nodes.gather(registry, case.target_id)
-        result = content_nodes.analyze(gateway, facts)
-        report = content_nodes.render_report(result, facts)
-    else:
-        raise ValueError(f"未知的用例 kind: {case.kind!r}（应为 account 或 content）")
+    facts, report = run_agent_output(case.kind, case.target_id, registry, gateway)
 
     return GroundingOutcome(
         case_id=case.id,

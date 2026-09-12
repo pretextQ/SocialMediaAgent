@@ -1,0 +1,14 @@
+[
+  {
+    "id": "real-gaogang-strategy",
+    "kind": "account",
+    "target_id": "bilibili:21401670",
+    "note": "真实公开数据账号；评审账号策略报告的具体性/结构/简洁性"
+  },
+  {
+    "id": "real-tongyi-content",
+    "kind": "content",
+    "target_id": "bilibili:BV1yyQEBdEZX",
+    "note": "真实公开视频；评审内容分析报告"
+  }
+]
