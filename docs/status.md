@@ -10,7 +10,7 @@
 ## 1. 一句话现状
 
 后端 **P0 ~ P5.5 已完成并推送**；全量测试 **307 passed**（含 CI 门槛）；
-**LLM 链路已用真实端点验证**；**`account_strategy` 已支持 LLM 自主选择工具**（失败自动回退确定性路径）；
+**LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 M3（工具选择评测 + 多轮方差）**；前端尚未实施。
 
 ## 2. 基线
@@ -119,7 +119,11 @@
       state 记录 `gather_source` 与 `tool_trace`（为 M3 的工具选择正确率铺路）。
       **实测观察**：真实 LLM 在健康账号上 6 个工具各调 1 次；在下滑账号上出现**重复调用**
       （recent_contents x2、search_operation_knowledge x2）—— 说明模型选择尚不精简，这正是 M3 要量化的点。
-- [ ] **`graph_builder.py` 的指令路由仍是正则**：本次只改造了 account_strategy，最小图未改。
+- [x] **`graph_builder.py` 的指令路由**（B1）：抽出 `agents/router.py`；`agentic=True` 时用 LLM function calling
+      选路由与参数，异常/非唯一返回/参数不合法一律**回退正则**；state 记 `route_source`（llm/rules）与 `route_args`；
+      拓扑改为条件分支（有路由 → `exec_tool`，无路由 → `no_route`）。**默认仍为正则且作为对照组**（有守护测试）。
+      顺带修掉一个真实缺陷：规则路由到 `analyze_content_performance` / `get_content_metrics` 时原先不抽参数，
+      `tool.invoke()` 必然抛 `ValidationError`。
 - [x] **M3 工具选择评测**：`evaluation/`（指标 + runner + CLI + case 集）+ `RecordingRegistry` 实测调用序列。
       CLI 支持 `--runs N`（默认 3）：先按轮聚合、再跨轮给出 **均值 ± 总体标准差**；
       逐用例明细表保留每轮原始观测（可复核）。
@@ -181,7 +185,7 @@
 | --- | --- |
 | crawler venv 为空壳 | 阻塞自动采集 P1.11/1.12；真实数据改走 `import_csv` 手工导入 |
 | RAG 默认非语义 | `HashEmbedder` 检索质量有限 |
-| 工具决策仅部分实现 | `account_strategy` 已可 LLM 自主选工具；最小图路由仍为正则。工具选择质量已有评测（M3），但**用例仍为合成演示账号**，LLM 侧结论需真实数据 |
+| 工具 / 路由决策 | `account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策（**默认关闭**、失败回退确定性路径）。工具选择质量已有评测（M3），但**用例仍为合成演示账号**，LLM 侧结论需真实数据 |
 | 无认证 / 无多租户 | 当前定位为**单用户本地工具**，不适用于多用户或企业场景 |
 | 合规 | 采集通道涉及平台 ToS 与非商用许可，见 [`compliance.md`](compliance.md) |
 

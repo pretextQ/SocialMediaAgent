@@ -4,10 +4,19 @@
 不依赖 LLM（P2 用规则路由，确定性可测；P3 换 LLM 决策）。
 """
 
+import json
+
 from socialmedia_agent.agents.graph_builder import build_minimal_graph
 from socialmedia_agent.agents.state import AgentState
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.registry import ToolRegistry
+from socialmedia_agent.llm.circuit_breaker import CircuitBreaker
+from socialmedia_agent.llm.gateway import LLMGateway
+from socialmedia_agent.llm.providers import (
+    ProviderToolCall,
+    ProviderToolResult,
+    ToolCallingProvider,
+)
 
 
 def make_context(tmp_path):
@@ -114,6 +123,22 @@ def test_minimal_graph_calls_search_knowledge(tmp_path):
     assert state["result"][0]["payload"]["title"] == "标题写作"
 
 
+def test_minimal_graph_calls_analyze_content_performance(tmp_path):
+    """回归：该路由原先必然抛 ValidationError——_args_for 只给部分工具抽参数。"""
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "内容表现分析 bilibili:90001")
+    assert state["tool_calls"] == ["analyze_content_performance"]
+    assert state["result"]["content_count"] == 1
+
+
+def test_minimal_graph_tool_route_missing_param_returns_hint(tmp_path):
+    """缺少必需参数时应给人类可读提示，而不是把 pydantic 异常抛穿整张图。"""
+    ctx = make_context(tmp_path)
+    state = run_graph(ctx, "内容表现分析")
+    assert state["tool_calls"] == ["analyze_content_performance"]
+    assert "缺少" in state["result"]
+
+
 def test_minimal_graph_unknown_instruction_returns_hint(tmp_path):
     ctx = make_context(tmp_path)
     state = run_graph(ctx, "今天天气怎么样")
@@ -206,3 +231,133 @@ def test_minimal_graph_agent_missing_param_returns_hint(tmp_path):
     state = run_graph(ctx, "制定运营策略")
     assert state["tool_calls"] == ["agent:account_strategy"]
     assert "缺少" in state["result"]
+
+
+# ---------------------------------------------------------------------------
+# B1：LLM 路由（function calling）+ 正则对照组
+# ---------------------------------------------------------------------------
+
+
+class ScriptedRouteProvider(ToolCallingProvider):
+    """complete_with_tools 按脚本返回，并记录调用轮次（用于守护「默认不问模型」）。"""
+
+    def __init__(self, script: list, complete_response: str | None = None):
+        self.script = list(script)
+        self.tool_call_rounds = 0
+        self.complete_calls = 0
+        self._complete_response = complete_response or json.dumps(
+            {
+                "account_id": "bilibili:90001",
+                "account_health": 66,
+                "strengths": [],
+                "weaknesses": [],
+                "anomalies": [],
+                "recommendations": [],
+                "strategy_summary": "模型给的策略摘要",
+                "weekly_plan": [],
+                "kpis": [],
+                "risks": [],
+            },
+            ensure_ascii=False,
+        )
+
+    def complete(self, messages, response_format: str = "text") -> str:
+        self.complete_calls += 1
+        return self._complete_response
+
+    def complete_with_tools(self, messages, tools) -> ProviderToolResult:
+        self.tool_call_rounds += 1
+        step = self.script.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        return step
+
+
+def make_gateway(provider) -> LLMGateway:
+    return LLMGateway(
+        provider=provider,
+        breaker=CircuitBreaker(name="route", failure_threshold=99, recovery_timeout=60),
+    )
+
+
+def route_call(name: str, **args) -> ProviderToolResult:
+    return ProviderToolResult(
+        tool_calls=[ProviderToolCall(id=f"c-{name}", name=name, arguments=args)]
+    )
+
+
+def run_agentic(ctx, text: str, provider):
+    graph = build_minimal_graph(
+        make_registry(ctx), gateway=make_gateway(provider), agentic=True
+    )
+    return graph.invoke({"input": text, "tool_calls": [], "result": None})
+
+
+def test_agentic_routing_uses_llm_decision(tmp_path):
+    """agentic=True：由模型用 function calling 决定路由（这里选 account_strategy）。"""
+    ctx = make_context(tmp_path)
+    provider = ScriptedRouteProvider([route_call("account_strategy", account_id="bilibili:90001")])
+
+    state = run_agentic(ctx, "账号诊断 bilibili:90001", provider)
+
+    assert state["route_source"] == "llm"
+    assert state["tool_calls"] == ["agent:account_strategy"]
+    assert state["result"]["strategy"]["strategy_summary"] == "模型给的策略摘要"
+
+
+def test_minimal_graph_default_does_not_use_llm_routing(tmp_path):
+    """默认（agentic=False）必须仍是正则路由，且**一次都不问模型**。"""
+    ctx = make_context(tmp_path)
+    provider = ScriptedRouteProvider([])  # 若真走了 LLM 路由，空脚本会直接报错
+    graph = build_minimal_graph(make_registry(ctx), gateway=make_gateway(provider))
+
+    state = graph.invoke(
+        {"input": "获取账号 bilibili:90001 的资料", "tool_calls": [], "result": None}
+    )
+
+    assert state["route_source"] == "rules"
+    assert state["tool_calls"] == ["get_account_profile"]
+    assert state["result"]["nickname"] == "UP主A"
+    assert provider.tool_call_rounds == 0
+
+
+def test_agentic_routing_falls_back_to_rules_on_llm_failure(tmp_path):
+    """LLM 失败 -> 回退正则路由（route_source 如实标为 rules），不产出半份决策。"""
+    ctx = make_context(tmp_path)
+    provider = ScriptedRouteProvider([RuntimeError("boom")] * 4)  # 网关会重试 3 次
+
+    state = run_agentic(ctx, "获取账号 bilibili:90001 的资料", provider)
+
+    assert state["route_source"] == "rules"
+    assert state["tool_calls"] == ["get_account_profile"]
+    assert state["result"]["nickname"] == "UP主A"
+
+
+def test_agentic_routing_rejects_invalid_arguments(tmp_path):
+    """模型选对了函数但参数过不了 schema -> 视为路由失败，回退正则。"""
+    ctx = make_context(tmp_path)
+    provider = ScriptedRouteProvider([route_call("account_strategy")])  # 缺 account_id
+
+    state = run_agentic(ctx, "制定 bilibili:90001 运营策略", provider)
+
+    assert state["route_source"] == "rules"
+    assert state["tool_calls"] == ["agent:account_strategy"]
+    assert state["result"]["account_id"] == "bilibili:90001"
+
+
+def test_agentic_routing_handles_instruction_regex_cannot_parse(tmp_path):
+    """增量价值证明：口语化指令正则路由不到，LLM 能给出带参数的路由。"""
+    ctx = make_context(tmp_path)
+    text = "帮我看看那个 UP主 bilibili:90001 最近发了些什么"
+
+    rules_state = run_graph(ctx, text)
+    assert rules_state["tool_calls"] == []  # 前提：正则确实路由不了
+
+    provider = ScriptedRouteProvider(
+        [route_call("get_recent_contents", account_id="bilibili:90001", limit=5)]
+    )
+    state = run_agentic(ctx, text, provider)
+
+    assert state["route_source"] == "llm"
+    assert state["tool_calls"] == ["get_recent_contents"]
+    assert isinstance(state["result"], list)

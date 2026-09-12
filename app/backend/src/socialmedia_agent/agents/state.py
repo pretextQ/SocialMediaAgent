@@ -12,4 +12,6 @@ from typing import Any, TypedDict
 class AgentState(TypedDict, total=False):
     input: str
     tool_calls: list[str]
+    route_args: dict[str, Any]
+    route_source: str  # rules | llm —— 本次路由由谁决定（回退必须可观测）
     result: Any

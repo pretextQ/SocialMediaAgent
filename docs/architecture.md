@@ -192,7 +192,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | `rag/` | 运营知识：文档管理 + 向量索引 + 检索 | 接口抽象，FAISS 为当前实现 |
 | `memory/` | 账号历史运营特征：存储 / 摘要 / TTL | 独立 DB，与 RAG 物理分离 |
 | `agents/tools/` | 9 个内部 Tool | Agent 取数的唯一通道 |
-| `agents/*` | 各 Agent 的 gather / analyze / report 节点与合成图 | 输出契约固定 + 有回归测试 |
+| `agents/*` | 各 Agent 的 gather / analyze / report 节点、合成图与指令路由（`agents/router.py`） | 输出契约固定 + 有回归测试；路由保留确定性对照组 |
 | `api/` | FastAPI 应用工厂与路由 | 依赖注入 gateway / retriever |
 | `evaluation/` | 工具选择质量评测：指标、runner、case 集 | 用 RecordingRegistry **实测**调用序列，不引用手写常量 |
 | `cli/` | 数据导入（`import_csv`）、采集（`ingest`）、知识库种子（`seed_knowledge`） | 支持流程可重复执行 |
@@ -232,6 +232,14 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 
 两种模式都会在 state 中记录 `gather_source`（`llm` / `rules`）与 `tool_trace`（工具调用序列），
 供对比与「工具选择正确率」统计使用；`evaluation/` 消费这两个字段产出可复核的数字。
+
+**最小图的指令路由同样有两种模式**（`build_minimal_graph(registry, gateway, agentic=...)`）：
+
+- `agentic=False`（默认）：`agents/router.py` 用正则把指令解析为「目标（Tool 或能力）+ 参数」。
+- `agentic=True`：把候选函数（8 个 Tool + 5 个能力 pseudo-tool）的 schema 交给模型做 function calling；
+  **异常、未返回唯一函数、参数过不了对应 pydantic schema 一律回退正则**——不执行半份决策。
+- 两者都在 state 记录 `route_source`（`llm` / `rules`）与 `route_args`；拓扑为
+  `route →（条件分支）exec_tool / no_route → END`。
 
 ### 8.2 9 个内部 Tool
 

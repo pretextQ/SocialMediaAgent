@@ -277,7 +277,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 
 ## 已知限制
 
-- **工具决策仅部分实现**：`account_strategy` 已支持 `agentic=True` 由 LLM 自主选择工具（`agents/tool_loop.py`，失败自动回退确定性路径）；但 `agents/graph_builder.py` 的最小图仍是正则路由。
+- **工具 / 路由决策默认仍是确定性路径**：`account_strategy` 的 gather 与最小图的指令路由都支持 `agentic=True` 由 LLM 决策（分别见 `agents/tool_loop.py`、`agents/router.py`），失败或参数非法自动回退；两处默认值均为关闭。
 - **评测只覆盖工具选择**：`evaluation/` 量化的是「选对工具没有」，支持 `--runs N`（默认 3）**多轮取均值并报告方差**——LLM 温度为 0.2，单轮结果不足以作为结论；输出质量、RAG 检索质量尚未评测。用例当前为**合成演示账号**，按数据纪律仅可用于链路验证。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
