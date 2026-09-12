@@ -194,7 +194,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | `agents/tools/` | 9 个内部 Tool | Agent 取数的唯一通道 |
 | `agents/*` | 各 Agent 的 gather / analyze / report 节点、合成图与指令路由（`agents/router.py`） | 输出契约固定 + 有回归测试；路由保留确定性对照组 |
 | `api/` | FastAPI 应用工厂与路由 | 依赖注入 gateway / retriever |
-| `evaluation/` | 工具选择质量评测：指标、runner、case 集 | 用 RecordingRegistry **实测**调用序列，不引用手写常量 |
+| `evaluation/` | 评测：工具选择质量 + RAG 检索质量；指标、runner、case 集 | 用 RecordingRegistry **实测**调用序列；检索评测现场建内存知识库，确定性、无需密钥 |
 | `cli/` | 数据导入（`import_csv`）、采集（`ingest`）、知识库种子（`seed_knowledge`） | 支持流程可重复执行 |
 
 ---

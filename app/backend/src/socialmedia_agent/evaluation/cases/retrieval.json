@@ -1,0 +1,56 @@
+[
+  {
+    "id": "title-writing",
+    "query": "标题怎么写才能提升点击率和完播率",
+    "expected_ids": ["标题写作方法"],
+    "note": "对应种子文档「标题写作方法」"
+  },
+  {
+    "id": "content-quality",
+    "query": "判断一条内容质量好不好应该看哪些指标",
+    "expected_ids": ["内容质量评估"],
+    "note": "对应种子文档「内容质量评估」"
+  },
+  {
+    "id": "topic-direction",
+    "query": "科技类账号适合做哪些选题方向",
+    "expected_ids": ["选题方向"],
+    "note": "对应种子文档「选题方向」"
+  },
+  {
+    "id": "cadence",
+    "query": "账号保持怎样的更新节奏才健康",
+    "expected_ids": ["运营更新节奏"],
+    "note": "对应种子文档「运营更新节奏」"
+  },
+  {
+    "id": "interaction-metrics",
+    "query": "评论数和点赞率说明什么",
+    "expected_ids": ["内容质量评估"],
+    "note": "同样落在「内容质量评估」"
+  },
+  {
+    "id": "paraphrase-copywriting",
+    "query": "怎么让文案更吸引人",
+    "expected_ids": ["标题写作方法"],
+    "note": "改写型：与文档几乎无字面重叠，考察语义检索能力"
+  },
+  {
+    "id": "paraphrase-decline",
+    "query": "账号数据下滑了该怎么办",
+    "expected_ids": ["运营更新节奏"],
+    "note": "改写型：与文档几乎无字面重叠"
+  },
+  {
+    "id": "paraphrase-viral",
+    "query": "做什么内容更容易火",
+    "expected_ids": ["选题方向"],
+    "note": "改写型：与文档几乎无字面重叠"
+  },
+  {
+    "id": "stable-update",
+    "query": "稳定更新和内容差异化对账号运营的意义",
+    "expected_ids": ["运营更新节奏"],
+    "note": "对应种子文档「运营更新节奏」"
+  }
+]

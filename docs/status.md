@@ -92,7 +92,8 @@
 **验证边界**：
 
 - Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
-- 评测范围：目前只有「工具选择质量」有指标；输出质量、RAG 检索质量、Prompt 回归尚未评测。
+- 评测范围：已有「**工具选择质量**」（M3）与「**RAG 检索质量**」两项指标；输出质量、Prompt 回归、
+  数据准确性尚未评测。检索评测是确定性的（默认 HashEmbedder），可直接进 CI。
 - 评测数据有**两条来源**：**合成演示数据**（`source=synthetic`，仅链路验证，不可作评测依据）与
   **真实公开数据**（19 条，`source=manual`，独立 real 库 `data/sma_real.db`）。**结论以真实数据那版为准**；
   每条真实数据的数字都能在原始视频页核验（CSV 带 `url` 出处）。合成数据由
@@ -182,9 +183,23 @@
 
 ### E. P6 Evaluation（需先完成 C）
 
-- [ ] 5 项评估：数据准确性 / **Tool Calling 正确率（M3 已实现）** / RAG 检索质量 / Agent 输出质量 / Prompt 回归
-- [x] `evaluation/` 模块（M3：工具选择指标 + runner + CLI + case 集；`--runs` 多轮方差）
-- [ ] evaluation 在**真实数据**上重跑（当前用例为合成演示账号）+ 接入 CI 强制运行
+- [ ] 5 项评估：数据准确性 / **Tool Calling 正确率（已实现）** / **RAG 检索质量（已实现）** / Agent 输出质量 / Prompt 回归
+- [x] `evaluation/` 模块：工具选择指标 + runner + CLI + case 集（`--runs` 多轮方差）；**RAG 检索质量**（`retrieval.py` + `retrieval_runner.py` + case 集）
+- [x] evaluation 在**真实数据**上重跑（见 C 组 M3 小节）
+- [ ] 接入 CI 强制运行（检索评测是**确定性**的，可直接进门槛）
+
+      **RAG 检索质量实测**（seed 知识库 4 篇，默认 `HashEmbedder`，k=3，**不需要 LLM 密钥**）：
+
+      | 用例数 | recall@3 | precision@3 | MRR | hit_rate |
+      | --- | --- | --- | --- | --- |
+      | 9 | 0.889 | 0.296 | 0.889 | 89% |
+
+      **结论**：字面重叠的查询几乎全中；**唯一落空的是最纯粹的改写型查询**——
+      「怎么让文案更吸引人」期望「标题写作方法」，返回的 3 篇**全错**。即当前召回**主要靠字面重合而非语义**，
+      这正是 `HashEmbedder` 的已知缺陷，现在有了数字而不是一句主观判断。
+
+      **口径提醒**：每例只有 1 篇相关文档、k=3，所以 `precision@3` 的**天花板就是 0.333**，
+      在本用例集上不具区分度；判优劣应看 `recall@k` / `MRR` / `hit_rate`。
 
 ### F. P7 打磨
 

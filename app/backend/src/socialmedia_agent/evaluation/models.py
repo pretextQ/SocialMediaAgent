@@ -62,6 +62,56 @@ class EvalReport:
     summaries: list["ModeSummary"] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class RetrievalScore:
+    """一次 RAG 检索的评分（@k 口径见 evaluation/retrieval.py）。"""
+
+    expected: list[str]
+    retrieved: list[str]
+    hit_ids: list[str]
+    recall_at_k: float
+    precision_at_k: float
+    reciprocal_rank: float
+    hit: bool
+
+
+@dataclass(frozen=True)
+class RetrievalCase:
+    """一条检索评测用例：查询 + 人工标注的相关文档 id。"""
+
+    id: str
+    query: str
+    expected_ids: list[str]
+    note: str = ""
+
+
+@dataclass
+class RetrievalOutcome:
+    """单条用例的检索结果。"""
+
+    case_id: str
+    query: str
+    score: "RetrievalScore"
+
+
+@dataclass
+class RetrievalSummary:
+    """检索质量汇总。"""
+
+    case_count: int
+    k: int
+    mean_recall_at_k: float
+    mean_precision_at_k: float
+    mrr: float
+    hit_rate: float
+
+
+@dataclass
+class RetrievalReport:
+    outcomes: list["RetrievalOutcome"] = field(default_factory=list)
+    summary: "RetrievalSummary | None" = None
+
+
 @dataclass
 class ToolSelectionScore:
     """一次运行的工具选择评分（集合口径 + 重复调用计数）。"""
