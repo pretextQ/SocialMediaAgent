@@ -9,9 +9,9 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **288 passed**（含 CI 门槛）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **307 passed**（含 CI 门槛）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 已支持 LLM 自主选择工具**（失败自动回退确定性路径）；
-前端与 Evaluation 尚未实施。
+**Evaluation 已完成 M3（工具选择评测 + 多轮方差）**；前端尚未实施。
 
 ## 2. 基线
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 288 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 307 passed（`tmp_path` 需放宽沙箱权限，见 [`issues.md`](issues.md) 附录） |
 | CI | `.github/workflows/ci.yml`（GitHub Actions）+ `app/scripts/run_ci.ps1`（本地门槛） |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -118,17 +118,27 @@
       （recent_contents x2、search_operation_knowledge x2）—— 说明模型选择尚不精简，这正是 M3 要量化的点。
 - [ ] **`graph_builder.py` 的指令路由仍是正则**：本次只改造了 account_strategy，最小图未改。
 - [x] **M3 工具选择评测**：`evaluation/`（指标 + runner + CLI + case 集）+ `RecordingRegistry` 实测调用序列。
-      **首次实测（真实 LLM，2 个合成演示账号）**：
+      CLI 支持 `--runs N`（默认 3）：先按轮聚合、再跨轮给出 **均值 ± 总体标准差**；
+      逐用例明细表保留每轮原始观测（可复核）。
 
-      | 模式 | recall | precision | f1 | 完全匹配率 | 重复调用 |
-      | --- | --- | --- | --- | --- | --- |
-      | rules | 1.000 | 1.000 | 1.000 | 100% | 6 |
-      | llm | 1.000 | 1.000 | 1.000 | 100% | 0 |
+      **实测（真实 LLM `deepseek-flash`，2 个合成演示账号，`--runs 3`）**：
 
-      **结论**：两条路径取到的工具**集合**都对；可量化的差异在**重复调用**——确定性 gather 与
-      `gather_topics` 会重复取 profile/recent/trends（每例 3 次重复），LLM 路径为 0。
-      **重要限制**：LLM 温度 0.2，单次运行**不足以作为证据**（更早的手工运行中模型确有重复调用），
-      需要多次重复取均值并报告方差后再下结论。
+      | 模式 | 重复取数 before | 重复取数 after | recall before -> after | 完全匹配率 before -> after |
+      | --- | --- | --- | --- | --- |
+      | rules | 3.00 ± 0.00 | **0.00 ± 0.00** | 1.000 -> 1.000 | 100% -> 100% |
+      | llm | 0.33 ± 0.24 | 0.17 ± 0.24 | 0.972 ± 0.039 -> 1.000 ± 0.000 | 83% ± 24% -> 100% ± 0% |
+
+      **结论**：评测发现确定性 gather 会重复取 profile / recent / trends（每例 3 次）——
+      根因是它直接复用了 `topic_recommendation.gather()` 这个**完整能力**；修复后降为 **0**
+      （见 [`issues.md`](issues.md) 第 11 条）。LLM 路径的重复调用属模型随机性，与本次改动无关。
+
+      **方法论收获**：单轮运行会给出**看似精确的错误结论**——单跑一轮时 LLM 重复 0、完全匹配 100%；
+      重复 3 轮后才看到完全匹配率仅 **83% ± 24%**。温度 > 0 的模型评测**必须报告方差**。
+
+      **数据边界（重要）**：用例账号由 `seed/generate_demo_data.py` 生成，属 `source=synthetic`
+      **合成演示数据**，按数据纪律**仅可用于链路验证**。其中确定性路径的调用次数与数据无关，
+      可作为**代码行为结论**；而 LLM 的 recall / 完全匹配率**不可**据此下结论，
+      需先完成「导入约 30 条真实数据」后重跑。
 - [ ] RAG 语义嵌入：默认 `HashEmbedder` 不具备语义相似度（配置 `SMA_EMBEDDING_MODEL` 可切换）。
 
 ### D. P5 DoD 遗留
@@ -137,8 +147,9 @@
 
 ### E. P6 Evaluation（需先完成 C）
 
-- [ ] 5 项评估：数据准确性 / Tool Calling 正确率 / RAG 检索质量 / Agent 输出质量 / Prompt 回归
-- [ ] `evaluation/` 模块 + CI 强制运行
+- [ ] 5 项评估：数据准确性 / **Tool Calling 正确率（M3 已实现）** / RAG 检索质量 / Agent 输出质量 / Prompt 回归
+- [x] `evaluation/` 模块（M3：工具选择指标 + runner + CLI + case 集；`--runs` 多轮方差）
+- [ ] evaluation 在**真实数据**上重跑（当前用例为合成演示账号）+ 接入 CI 强制运行
 
 ### F. P7 打磨
 
@@ -167,7 +178,7 @@
 | --- | --- |
 | crawler venv 为空壳 | 阻塞自动采集 P1.11/1.12；真实数据改走 `import_csv` 手工导入 |
 | RAG 默认非语义 | `HashEmbedder` 检索质量有限 |
-| 工具决策仅部分实现 | `account_strategy` 已可 LLM 自主选工具；最小图路由仍为正则，且**尚无评测量化「选得对不对」** |
+| 工具决策仅部分实现 | `account_strategy` 已可 LLM 自主选工具；最小图路由仍为正则。工具选择质量已有评测（M3），但**用例仍为合成演示账号**，LLM 侧结论需真实数据 |
 | 无认证 / 无多租户 | 当前定位为**单用户本地工具**，不适用于多用户或企业场景 |
 | 合规 | 采集通道涉及平台 ToS 与非商用许可，见 [`compliance.md`](compliance.md) |
 
