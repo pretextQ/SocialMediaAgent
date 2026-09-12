@@ -2,7 +2,7 @@
 
 多平台自媒体智能运营 Agent —— 输入平台账号 / 内容 / 指标数据，输出**账号诊断、内容分析、趋势分析、选题推荐、标题优化、运营策略**。
 
-> **状态**：后端可用（P0 ~ P5.5 已完成）。前端与 Evaluation 尚未实施。
+> **状态**：后端可用（P0 ~ P5.5 已完成）；评测（M3 工具选择）已落地。前端尚未实施。
 > 当前进度、未完成清单与续作步骤见 [`docs/status.md`](docs/status.md)。
 
 ---
@@ -278,15 +278,18 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 ## 已知限制
 
 - **工具决策仅部分实现**：`account_strategy` 已支持 `agentic=True` 由 LLM 自主选择工具（`agents/tool_loop.py`，失败自动回退确定性路径）；但 `agents/graph_builder.py` 的最小图仍是正则路由。
-- **评测只覆盖工具选择**：`evaluation/` 量化的是「选对工具没有」，且**单次运行不足以作为证据**（LLM 温度为 0.2，存在随机性）；输出质量、RAG 检索质量尚未评测。
+- **评测只覆盖工具选择**：`evaluation/` 量化的是「选对工具没有」，支持 `--runs N`（默认 3）**多轮取均值并报告方差**——LLM 温度为 0.2，单轮结果不足以作为结论；输出质量、RAG 检索质量尚未评测。用例当前为**合成演示账号**，按数据纪律仅可用于链路验证。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。
-- **前端、Evaluation 未实施**：`docs/plan-frontend.md` 已规划；P6 评估套件尚未开发。
+- **前端未实施**：`docs/plan-frontend.md` 已规划；P6 评估套件其余 4 项（数据准确性 / RAG 检索质量 / 输出质量 / Prompt 回归）尚未开发。
 - **周报接口未暴露**：周报由 APScheduler 落盘为 Markdown，尚无 HTTP 读取接口。
 
 > 已完成能力的真实性：LLM 链路已于 2026-09-12 用 DeepSeek `deepseek-flash` 真实调用验证（`/strategy`、`/titles/optimize`），
 > 输出确实引用了数据库中的指标与话题事实。
+>
+> 工具选择评测（M3）同样基于实测：用 `RecordingRegistry` 记录**实际**调用序列，发现确定性管线重复取
+> profile / recent / trends（每例 3 次），修复后降为 **3 → 0**（详见 [`docs/issues.md`](docs/issues.md) 第 11 条）。
 
 ---
 
