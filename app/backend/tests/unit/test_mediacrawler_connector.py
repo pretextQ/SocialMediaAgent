@@ -67,6 +67,22 @@ def test_get_table_schema_unknown_raises():
         get_table_schema("unknown_platform")
 
 
+def test_get_table_schema_accepts_long_platform_name():
+    """技术债：schemas 自己维护了一份平台代号映射，漏了 'bilibili' 长写。
+
+    现在统一复用 normalizers.platform_from_code（项目里**唯一**的平台代号来源），
+    长写与前缀写都接受——此前传长写会得到一句令人困惑的「不支持的平台代号」。
+    """
+    assert get_table_schema("bilibili").table == "bilibili_video"
+    assert get_table_schema("bili").table == "bilibili_video"
+
+
+def test_get_table_schema_known_but_unsupported_platform():
+    """能识别的平台但没有显式 schema 时，报「尚未提供」而不是「不支持」。"""
+    with pytest.raises(KeyError, match="尚未提供"):
+        get_table_schema("xhs")
+
+
 def test_reader_reads_latest_matching_keyword(staging_db):
     reader = MediaCrawlerReader(staging_db)
     rows = reader.read_latest_contents("bili", "人工智能", max_count=10)

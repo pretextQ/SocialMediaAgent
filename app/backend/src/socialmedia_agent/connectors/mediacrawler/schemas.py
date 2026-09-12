@@ -9,17 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from socialmedia_agent.domain.enums import ContentType, MetricType, Platform
-
-# 平台代号（MediaCrawler 命令行）→ 本模块 schema 键
-_PLATFORM_CODE_KEY = {
-    "bili": "bilibili",
-    "xhs": "xiaohongshu",
-    "dy": "douyin",
-    "ks": "kuaishou",
-    "wb": "weibo",
-    "zhihu": "zhihu",
-    "tieba": "tieba",
-}
+from socialmedia_agent.normalizers import platform_from_code
 
 
 @dataclass(frozen=True)
@@ -61,11 +51,17 @@ SCHEMAS: dict[str, PlatformTableSchema] = {
 
 
 def get_table_schema(platform_code: str) -> PlatformTableSchema:
-    """按平台代号（如 'bili'）取显式 schema；未知平台报错（不猜测列）。"""
-    key = _PLATFORM_CODE_KEY.get(platform_code.strip().lower())
-    if key is None:
+    """按平台代号（如 'bili' / 'bilibili'）取显式 schema。
+
+    平台代号解析统一复用 `normalizers.platform_from_code`——那是项目里**唯一**的平台代号来源。
+    本模块此前自己维护了一份映射，不仅与它重复，还漏了长写，导致 'bilibili' 被误报为「不支持」。
+
+    未知平台报错（不猜测列）；能识别但尚无显式 schema 的平台给出**区分性**错误。
+    """
+    platform = platform_from_code(platform_code)
+    if platform is None:
         raise KeyError(f"不支持的平台代号: {platform_code!r}")
     try:
-        return SCHEMAS[key]
-    except KeyError as exc:  # pragma: no cover - 由 get_table_schema 保护
+        return SCHEMAS[platform.value]
+    except KeyError as exc:
         raise KeyError(f"平台 {platform_code!r} 尚未提供显式 schema") from exc
