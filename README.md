@@ -3,7 +3,7 @@
 多平台自媒体智能运营 Agent —— 输入平台账号 / 内容 / 指标数据，输出**账号诊断、内容分析、趋势分析、选题推荐、标题优化、运营策略**。
 
 > **状态**：后端可用（P0 ~ P5.5 已完成）。前端与 Evaluation 尚未实施。
-> 当前进度、未完成清单与续作步骤见 [`docs/HANDOFF.md`](docs/HANDOFF.md)。
+> 当前进度、未完成清单与续作步骤见 [`docs/status.md`](docs/status.md)。
 
 ---
 
@@ -284,10 +284,13 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 
 | 文档 | 内容 |
 | --- | --- |
-| [`docs/HANDOFF.md`](docs/HANDOFF.md) | 交接文档：现状、未完成清单、续作步骤（**先读这个**） |
-| [`docs/architecture-analysis.md`](docs/architecture-analysis.md) | 最终架构方案与 P0 ~ P7 计划、DoD |
+| [`docs/README.md`](docs/README.md) | **文档索引与阅读顺序（先看这个）** |
+| [`docs/architecture.md`](docs/architecture.md) | 架构：分层、模块职责、数据流、关键抽象 |
+| [`docs/data-model.md`](docs/data-model.md) | 领域模型、`canonical_id`、表结构与幂等键 |
 | [`docs/api.md`](docs/api.md) | HTTP API 清单与输出契约 |
-| [`docs/source-analysis.md`](docs/source-analysis.md) | 第三方源码分析（MatrixFlow / MediaCrawler） |
+| [`docs/status.md`](docs/status.md) | 项目进度、DoD 对照、未完成清单、续作步骤 |
 | [`docs/adr/`](docs/adr/) | 架构决策记录与「移植候选」三线表 |
+| [`docs/source-analysis.md`](docs/source-analysis.md) | 第三方源码分析（MatrixFlow / MediaCrawler） |
+| [`docs/compliance.md`](docs/compliance.md) | License / 平台 ToS / 个人信息边界 |
 | [`docs/plan-frontend.md`](docs/plan-frontend.md) | 前端规划（未实施） |
 | [`AGENTS.md`](AGENTS.md) | 工程规范（开发前必读） |

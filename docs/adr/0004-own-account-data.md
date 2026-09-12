@@ -13,7 +13,7 @@
 
 - 目标：接入「自有账号」（owner）数据，与现有「观察账号」（observed，经 MediaCrawler）区分，支撑发布历史/后台统计等自有数据能力。
 - MatrixFlow 本质是 Node/Electron + Patchright 的自有账号工具（发布 + 后台统计抓取 + 本地聚合）。
-- 主工程约束（AGENTS.md / architecture-analysis.md）：统一 Python；`third_party` 只读；第三方能力必须走 ADR 四选一；数据采集必须 `Connector → Normalizer → Unified Domain Model`；合规边界。
+- 主工程约束（AGENTS.md / architecture.md）：统一 Python；`third_party` 只读；第三方能力必须走 ADR 四选一；数据采集必须 `Connector → Normalizer → Unified Domain Model`；合规边界。
 
 ## 决策
 

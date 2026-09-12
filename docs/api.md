@@ -1,6 +1,7 @@
 # SocialMediaAgent API 接口清单
 
-> 更新：2026-08-25（P5.5 收敛后）
+> 更新：2026-09-12
+> 相关：架构见 [`architecture.md`](architecture.md)，数据模型见 [`data-model.md`](data-model.md)，项目进度见 [`status.md`](status.md)。
 > 全部端点前缀 `/api/v1`；OpenAPI 文档见 `GET /openapi.json`，交互式 Swagger UI 见 `GET /docs`。
 > 说明：Agent 端点在未配置 LLM API Key（`LLM_API_KEY` 未设置 → gateway=None）时走**确定性规则兜底**，可无密钥演示。
 

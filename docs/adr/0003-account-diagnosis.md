@@ -1,6 +1,6 @@
 # ADR-0003: Account Diagnosis Agent（P3）构建方式
 
-- 状态：已接受
+- 状态：已接受（**部分被取代**：P5.5.1 起 `agents/account_diagnosis/` 并入 `agents/account_strategy/`，诊断输出成为其子集；本 ADR 的分层决策仍然有效）
 - 日期：2026-08-24
 - 相关阶段：P3
 - 来源模块：
@@ -9,8 +9,8 @@
 
 ## 背景
 
-- P3 目标（`docs/architecture-analysis.md` 第七节）：首个 Agent —— **Account Diagnosis Agent**，输入账号 + 近期内容 + 历史指标，输出严格 JSON 契约 + 人类可读报告；输出 schema 有回归测试；**Agent 引用的统计数字与 DB 可核验**（为 P6 铺垫）。
-- 目录设计：`agents/account_diagnosis/`（graph.py / nodes.py / prompts.py / schemas.py）。
+- P3 目标（见 `docs/status.md` 的 DoD 对照）：首个 Agent —— **Account Diagnosis Agent**，输入账号 + 近期内容 + 历史指标，输出严格 JSON 契约 + 人类可读报告；输出 schema 有回归测试；**Agent 引用的统计数字与 DB 可核验**（为 P6 铺垫）。
+- 目录设计：`agents/account_diagnosis/`（graph.py / nodes.py / prompts.py / schemas.py）。**该目录在 P5.5.1 后已不存在**，等价实现位于 `agents/account_strategy/`，诊断子集由 `AccountStrategyOutput.to_diagnosis()` 提取。
 - 三线表（`docs/adr/README.md`）：AI 规则兜底（`AIService.ts: ruleBasedPrePublishCheck()`）初判「参考」；`AnomalyService` / `detectAnomaly` 未见单独条目，本 ADR 一并决策。
 
 ## 决策

@@ -11,7 +11,7 @@
 ## 背景
 
 - P2 需要统一的 LLM 调用能力：text / JSON 模式、pydantic 结构化输出校验、重试、熔断、多提供商。
-- 架构中的位置（`docs/architecture-analysis.md`）：`接入层 → Agent层 → LLM Gateway`，LLM Gateway 是 Agent 与外部模型之间唯一边界，业务层只依赖本模块接口。
+- 架构中的位置（`docs/architecture.md`）：`接入层 → Agent层 → LLM Gateway`，LLM Gateway 是 Agent 与外部模型之间唯一边界，业务层只依赖本模块接口。
 - 三线表（`docs/adr/README.md`）对两条候选行的初判均为「重新实现」：
   - MatrixFlow `LLMService.ts`（`ai/LLMService.ts: call()/callProvider()`）→ 重新实现；无 JSON 模式/熔断/重试，`fallbackToRules` 分支存在与注释相悖的 bug（`:72-74`）。
   - MediaRadar `llm_gateway.py` + `core/circuit_breaker.py` → 重新实现；借鉴熔断/重试/pydantic 校验思路。

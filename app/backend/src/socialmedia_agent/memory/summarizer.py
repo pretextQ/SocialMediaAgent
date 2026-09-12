@@ -1,6 +1,6 @@
 """Memory 摘要器：将账号的历史运营特征按 category 聚合为结构化摘要。
 
-摘要结果供 Agent 启动时注入上下文（docs/architecture-analysis.md 4.4）。
+摘要结果供 Agent 启动时注入上下文（docs/architecture.md 5.3）。
 规则版实现（确定性、可测试）；LLM 版摘要可在后续迭代替换。
 """
 

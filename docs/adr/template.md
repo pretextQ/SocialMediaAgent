@@ -14,7 +14,7 @@
 ## 背景
 
 - 要解决的问题 / 需要评估的第三方模块。
-- 在架构中的位置（参考 `docs/architecture-analysis.md`、`docs/source-analysis.md`）。
+- 在架构中的位置（参考 `docs/architecture.md`、`docs/source-analysis.md`）。
 
 ## 决策
 

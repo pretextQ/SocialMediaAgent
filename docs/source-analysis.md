@@ -1,6 +1,7 @@
 # SocialMediaAgent 源码分析报告（MatrixFlow + MediaCrawler）
 
 > 分析方式：纯只读，实际阅读与搜索源码；所有引用均经核对。关键结论已二次抽查验证。
+> 地位：本文是**第三方源码事实的权威来源**，被 `docs/adr/` 直接引用；`docs/architecture.md` 只描述自研架构，不重复第三方细节。
 > 说明：物理路径上不存在 `third_party/MediaCrawler-main/`，MediaCrawler 源码位于 `third_party/MediaRadar-main/backend/services/crawler_service/`（下文简写为 `crawler_service/`）。
 
 ---
