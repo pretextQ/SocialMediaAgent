@@ -9,7 +9,7 @@ def test_all_core_tables_created(tmp_path):
     engine = create_db_engine(f"sqlite:///{tmp_path / 'db.sqlite'}")
     Base.metadata.create_all(engine)
     tables = set(inspect(engine).get_table_names())
-    assert {"accounts", "contents", "metrics", "comments", "topics"} <= tables
+    assert {"accounts", "contents", "metrics", "topics"} <= tables
     engine.dispose()
 
 

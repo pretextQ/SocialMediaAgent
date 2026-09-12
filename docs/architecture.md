@@ -111,7 +111,7 @@ app/backend/
                                |
 +------------------------------v------------------------------------+
 |        Repository + Domain + Normalizer（统一领域模型）             |
-|  Account / Content / Metric / Comment / Topic                     |
+|  Account / Content / Metric / Topic                               |
 |  Normalizer：12.3万 -> 123000；unix -> ISO；canonical_id 派生       |
 |  SQLAlchemy -> SQLite（抽象后可换 PostgreSQL）                      |
 +------------------------------+------------------------------------+

@@ -32,7 +32,7 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 ```
 
 - 由 `domain/identity.make_canonical_id` 实现，`Account` / `Content` 的 `model_validator` 在构造后**强制覆盖**该字段。
-- 内容通过 `Content.account_id` 指向 `Account.canonical_id`；指标 / 评论通过 `content_id` 指向 `Content.canonical_id`。
+- 内容通过 `Content.account_id` 指向 `Account.canonical_id`；指标通过 `content_id` 指向 `Content.canonical_id`。
 - 因此跨表关联不依赖自增主键，采集重复执行也不会产生重复行。
 
 ## 4. 领域模型
@@ -74,19 +74,7 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 | `source` | `MetricSource` | 来源，审计用 |
 | `raw_value` | `str?` | 原始串（如 `12.3万`） |
 
-### 4.4 Comment（评论）
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `platform_comment_id` | `str` | 平台内评论 ID |
-| `content_id` | `str` | 指向 `Content.canonical_id` |
-| `parent_comment_id` | `str?` | 二级评论 |
-| `author_nickname` / `content` | `str?` | 作者昵称 / 正文（**个人信息，见 compliance.md**） |
-| `like_count` / `publish_time` | | |
-
-> 说明：`Comment` 的 domain 与 ORM 已存在，但**尚未接入 Repository / API / 采集链路**（见 [`status.md`](status.md) 技术债）。
-
-### 4.5 Topic（话题）
+### 4.4 Topic（话题）
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -106,7 +94,6 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 | `accounts` | `canonical_id` UNIQUE 且索引；`platform`、`owner_type` 有索引 |
 | `contents` | `canonical_id` UNIQUE；`account_id` FK -> `accounts.canonical_id` |
 | `metrics` | `content_id` FK -> `contents.canonical_id`；`account_id` FK -> `accounts.canonical_id`；`value` `Numeric(20,4)`；`captured_at` 索引 |
-| `comments` | `content_id` FK -> `contents.canonical_id` |
 | `topics` | `keyword` 索引；`platforms` / `sentiment` 为 JSON |
 | `memory_entries` | **独立库**（`MemoryBase`，与核心库 Base 分离）：`account_id` / `category` 索引，`expires_at` 支持 TTL |
 
@@ -133,5 +120,4 @@ SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。建表当前使用 `Base
 ## 7. 已知语义问题
 
 - **Metric 是「最新快照」而不是时间序列**：同一指标的历史值会被覆盖，当前无法回答「某指标随时间如何变化」。这会影响趋势 / 历史分析的真实性，尚未决策（见 [`status.md`](status.md) 技术债）。
-- `Comment` 未接入链路，评论数据目前无法入库。
 - `Topic.platforms` 的 JSON 存储使平台过滤无法下推到 SQL，数据量大时需重新设计。

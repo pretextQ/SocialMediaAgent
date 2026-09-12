@@ -59,9 +59,10 @@
 
 | 字段 | 位置 | 风险 |
 | --- | --- | --- |
-| `Comment.author_nickname` | `domain/comment.py` | 可识别到自然人 |
-| `Comment.content` | `domain/comment.py` | 用户生成内容 |
 | `Account.nickname` / `avatar_url` | `domain/account.py` | 账号标识 |
+
+> 注：评论模型（`Comment`）及其 `author_nickname` / `content` 字段已随死代码清理移除——该模型从未接入
+> Repository / API / 采集链路。删除后个人信息面缩小到账号标识。
 
 **当前缺失的保护措施**（截至本文更新）：
 

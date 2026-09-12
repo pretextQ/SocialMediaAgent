@@ -110,7 +110,7 @@
 - [x] `GET /accounts` 隐性 100 条截断（[`issues.md`](issues.md) #8 遗留）：端点显式暴露 `limit`（默认 100 / 最大 500），MCP `list_accounts` 同步；`/contents`、`/metrics` 本就有该参数
 - [x] 死代码清理（已确认后执行）：删除 `normalizers/rules.py`（`install_default_rules` 无调用者，且 registry 对未注册平台本就回退 default，行为等价）与 `CircuitBreaker.to_dict()`（无调用者）。
       `normalizers/ids.py::canonical_id` **保留**——核实后它是 `normalizers` 包的公开导出且有测试覆盖，问题是「重复」而非「无引用」，删它会误删被测 API。
-- [ ] `Comment`（domain + ORM，无 repo/API/ingest 使用）——**属核心数据模型变更，单独确认** |
+- [x] `Comment` 已删除（domain + ORM + `comments` 表 + 对应 domain 测试）——经确认后执行；该模型从未接入 Repository / API / 采集链路，`compliance.md` 的个人信息面同步缩小。
 
 ### B. AI 真实性
 
