@@ -20,6 +20,11 @@ dist-electron/
 *.log
 logs/
 
+# 项目运行产物目录（SQLite 库、知识库向量索引等，均非源码；修正 knowledge.index 未被忽略的问题）
+app/backend/data/
+# 由 seed/generate_demo_data.py 生成的合成演示数据（请用生成器重新生成，不入库）
+app/backend/seed/demo_synthetic.csv
+
 # MediaCrawler 运行时产物（运行采集时写入 third_party 内的中转/登录态目录）
 browser_data/
 

@@ -47,3 +47,5 @@ class MetricSource(str, Enum):
     MATRIXFLOW = "matrixflow"
     OFFICIAL_API = "official_api"
     MANUAL = "manual"
+    # 合成数据：仅用于开发/演示/链路验证，绝不可作为真实业务数据或评测依据
+    SYNTHETIC = "synthetic"

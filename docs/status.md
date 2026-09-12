@@ -79,8 +79,13 @@
 - 输出确实引用数据库事实：2 条内容、话题 `post_count=88`、指标 12000 播放 / 640 赞 / 58 评论均出现在结果中。
 - Memory 读-写闭环验证：第二次调用可读到 2 条历史策略。
 
-**验证边界（未覆盖）**：`/contents/{id}/analysis`、`/trends/analysis` 尚未用真实 LLM 跑过；
-所用数据为**程序化写入的演示数据**，不是真实采集数据（真实数据的导入通道已就绪：`import_csv`，见第 4 节）。
+**验证边界**：
+
+- Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
+- 所用数据为**程序化写入与合成（`synthetic`）的演示数据**，不是真实数据。合成数据由
+  `seed/generate_demo_data.py` 生成、以 `--source synthetic` 导入独立 demo 库，
+  **仅用于链路验证与演示，不可作为评测依据**。
+- 真实数据的导入通道已就绪：`import_csv`（见第 4 节），待填入约 30 条真实数据。
 
 ---
 
@@ -96,7 +101,8 @@
 ### B. AI 真实性
 
 - [x] 真实 LLM 端到端
-- [x] 手工数据导入通道：`cli/import_csv.py` + `seed/` 模板与说明 + 9 个单测（解除「没有真实数据」的阻塞）
+- [x] 手工数据导入通道：`cli/import_csv.py`（兼容 GBK、`--dry-run`、整体校验、`--source`）+ `seed/` 模板与说明
+- [x] 合成演示数据通道：`seed/generate_demo_data.py` → 50 条 → 独立 demo 库（`source=synthetic`），仅用于链路验证与演示
 - [ ] P1.11 / 1.12 真机采集（`app/backend/.venv-crawler` 为空壳）
 - [ ] 填入约 30 条真实数据（用 `import_csv`），供评测使用
 
@@ -127,7 +133,7 @@
 - [ ] `graph_builder.py` 职责膨胀（正则路由 + Agent 派发 + 硬编码平台默认 `bilibili`）
 - [ ] 缺 Alembic 迁移（现用 `Base.metadata.create_all`）
 - [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
-- [ ] `seed_knowledge` 产出的 `data/knowledge/*.index` 与 `*.json` **未被 `.gitignore` 覆盖**（已用 `git check-ignore` 实测确认），执行后会污染工作区
+- [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
 
 ### H. 前端（规划就绪，未实施）
 

@@ -132,3 +132,90 @@ def test_import_csv_empty_file_returns_error(tmp_path):
     with empty.open("w", encoding="utf-8", newline="") as handle:
         csv.writer(handle).writerow(HEADER)
     assert main(["--input", str(empty), "--db-url", f"sqlite:///{tmp_path / 'e.db'}"]) == 1
+
+
+def test_import_csv_reads_gbk_encoded_file(tmp_path):
+    """Excel 在中文 Windows 上「另存为 CSV」默认是 GBK，必须能直接读。"""
+    path = tmp_path / "gbk.csv"
+    with path.open("w", encoding="gb18030", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(HEADER)
+        writer.writerow(["bili", "10001", "中文账号", "90001", "中文标题", "正文内容", "video",
+                         "2026-09-01T10:00:00Z", "", "12.3万", "640", "58", "", ""])
+    db_url = f"sqlite:///{tmp_path / 'gbk.db'}"
+
+    assert main(["--input", str(path), "--db-url", db_url]) == 0
+
+    database = Database(url=db_url)
+    with database.session() as session:
+        contents = ContentRepository(session).list()
+        metrics = MetricRepository(session).list()
+
+    assert len(contents) == 1
+    assert contents[0].title == "中文标题"
+    views = [m for m in metrics if m.metric_type == MetricType.VIEWS.value]
+    assert str(views[0].value) == "123000.0000"  # "12.3万" 由 Normalizer 归一
+
+
+def test_import_csv_dry_run_does_not_write(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_file = tmp_path / "dry.db"
+
+    assert main(["--input", str(csv_path), "--db-url", f"sqlite:///{db_file}", "--dry-run"]) == 0
+
+    assert not db_file.exists()
+
+
+def test_import_csv_invalid_row_writes_nothing(tmp_path):
+    """整体校验：任一行非法则整体失败，不产生部分写入。"""
+    rows = sample_rows()
+    bad = list(rows[1])
+    bad[0] = "unknown_platform"
+    csv_path = write_csv(tmp_path / "data.csv", [rows[0], bad])
+    db_file = tmp_path / "partial.db"
+
+    assert main(["--input", str(csv_path), "--db-url", f"sqlite:///{db_file}"]) == 1
+
+    assert not db_file.exists()
+
+
+def test_import_csv_dry_run_reports_invalid_row(tmp_path):
+    rows = sample_rows()
+    bad = list(rows[0])
+    bad[6] = "podcast"
+    csv_path = write_csv(tmp_path / "data.csv", [bad])
+    db_file = tmp_path / "dry2.db"
+
+    assert main(["--input", str(csv_path), "--db-url", f"sqlite:///{db_file}", "--dry-run"]) == 1
+
+    assert not db_file.exists()
+
+
+def test_row_to_raw_defaults_to_manual_source():
+    assert row_to_raw(as_row(sample_rows()[0]), line_no=2).source == MetricSource.MANUAL
+
+
+def test_row_to_raw_accepts_explicit_synthetic_source():
+    raw = row_to_raw(as_row(sample_rows()[0]), line_no=2, source=MetricSource.SYNTHETIC)
+    assert raw.source == MetricSource.SYNTHETIC
+
+
+def test_import_csv_source_flag_marks_metrics(tmp_path):
+    """--source synthetic 必须落到 Metric.source，合成数据不得伪装成手工真实数据。"""
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_url = f"sqlite:///{tmp_path / 'synth.db'}"
+
+    assert main(["--input", str(csv_path), "--db-url", db_url, "--source", "synthetic"]) == 0
+
+    database = Database(url=db_url)
+    with database.session() as session:
+        metrics = MetricRepository(session).list()
+
+    assert metrics
+    assert {m.source for m in metrics} == {MetricSource.SYNTHETIC.value}
+
+
+def test_import_csv_rejects_unknown_source(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    with pytest.raises(SystemExit):
+        main(["--input", str(csv_path), "--source", "not-a-source"])

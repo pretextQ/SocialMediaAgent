@@ -39,6 +39,9 @@ METRIC_COLUMNS: dict[str, MetricType] = {
 
 REQUIRED_COLUMNS = ("platform", "content_platform_id", "content_type")
 
+# 依次尝试：Excel 的「CSV UTF-8」带 BOM，UTF-8，以及中文 Windows Excel 默认的 GBK
+ENCODINGS = ("utf-8-sig", "utf-8", "gb18030")
+
 
 class CsvImportError(ValueError):
     """CSV 内容不符合要求。"""
@@ -48,10 +51,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="import-csv", description="把手工整理的 CSV 数据导入核心库")
     parser.add_argument("--input", required=True, help="CSV 文件路径")
     parser.add_argument("--db-url", default=None, help="覆盖数据库 URL（演示/测试用）")
+    parser.add_argument("--dry-run", action="store_true", help="只校验 CSV 不写库")
+    parser.add_argument(
+        "--source",
+        default=MetricSource.MANUAL.value,
+        choices=[m.value for m in MetricSource],
+        help=f"数据来源标注（默认 {MetricSource.MANUAL.value}）",
+    )
     return parser
 
 
-def row_to_raw(row: dict[str, str | None], line_no: int) -> RawContent:
+def row_to_raw(
+    row: dict[str, str | None],
+    line_no: int,
+    source: MetricSource = MetricSource.MANUAL,
+) -> RawContent:
     """把一行 CSV 转成 RawContent（仍由 Normalizer 完成口径归一）。"""
     for column in REQUIRED_COLUMNS:
         if not (row.get(column) or "").strip():
@@ -88,8 +102,28 @@ def row_to_raw(row: dict[str, str | None], line_no: int) -> RawContent:
         publish_time=clean("publish_time"),
         url=clean("url"),
         metrics=metrics,
-        source=MetricSource.MANUAL,
+        source=source,
     )
+
+
+def read_rows(path: Path) -> list[dict[str, str | None]]:
+    """读取 CSV，自动兼容 Excel 常见的几种编码。
+
+    Excel 在中文 Windows 上「另存为 CSV」默认写 GBK，因此不能只按 UTF-8 读。
+    """
+    last_error: Exception | None = None
+    for encoding in ENCODINGS:
+        try:
+            with path.open(encoding=encoding, newline="") as handle:
+                return list(csv.DictReader(handle))
+        except UnicodeDecodeError as exc:
+            last_error = exc
+            continue
+        except OSError as exc:
+            raise CsvImportError(f"读取失败: {exc}") from exc
+    raise CsvImportError(
+        "无法识别文件编码（已尝试 UTF-8 / GBK）。请在 Excel 中「另存为 -> CSV UTF-8」后重试。"
+    ) from last_error
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -102,44 +136,57 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        with path.open(encoding="utf-8-sig", newline="") as handle:
-            rows = list(csv.DictReader(handle))
-    except OSError as exc:
-        print(f"[import-csv] 读取失败: {exc}", file=sys.stderr)
+        rows = read_rows(path)
+    except CsvImportError as exc:
+        print(f"[import-csv] {exc}", file=sys.stderr)
         return 1
 
     if not rows:
         print(f"[import-csv] CSV 无数据行: {path}", file=sys.stderr)
         return 1
 
+    # 先整体校验：任一行有问题就整体失败，避免写一半留下脏数据
+    source = MetricSource(args.source)
+    try:
+        raws = [row_to_raw(row, line_no, source) for line_no, row in enumerate(rows, start=2)]
+    except CsvImportError as exc:
+        print(f"[import-csv] 数据错误: {exc}", file=sys.stderr)
+        return 1
+
+    if args.dry_run:
+        print(f"[import-csv] 校验通过（dry-run，未写库）：{len(raws)} 行")
+        return 0
+
     database = Database(url=args.db_url)
     database.create_all()
     mapper = RawToDomainMapper()
 
     accounts = contents = metrics = 0
-    try:
-        with database.session() as session:
-            account_repo = AccountRepository(session)
-            content_repo = ContentRepository(session)
-            metric_repo = MetricRepository(session)
-            for line_no, row in enumerate(rows, start=2):  # 第 1 行是表头
-                raw = row_to_raw(row, line_no)
-                account, content, metric_items = mapper.map(raw)
-                if account is not None:
-                    account_repo.upsert(account)
-                    accounts += 1
-                content_repo.upsert(content)
-                contents += 1
-                for metric in metric_items:
-                    metric_repo.upsert(metric)
-                    metrics += 1
-    except CsvImportError as exc:
-        print(f"[import-csv] 数据错误: {exc}", file=sys.stderr)
-        return 1
+    with database.session() as session:
+        account_repo = AccountRepository(session)
+        content_repo = ContentRepository(session)
+        metric_repo = MetricRepository(session)
+        for raw in raws:
+            account, content, metric_items = mapper.map(raw)
+            if account is not None:
+                account_repo.upsert(account)
+                accounts += 1
+            content_repo.upsert(content)
+            contents += 1
+            for metric in metric_items:
+                metric_repo.upsert(metric)
+                metrics += 1
+
+    # 汇报库内实际数量（去重后），避免把"处理次数"误读成"新增条数"
+    with database.session() as session:
+        stored_accounts = len(AccountRepository(session).list(limit=10**9))
+        stored_contents = len(ContentRepository(session).list(limit=10**9))
+        stored_metrics = len(MetricRepository(session).list(limit=10**9))
 
     print(
-        f"[import-csv] 完成 accounts={accounts} contents={contents} metrics={metrics} "
-        f"-> {database.url}"
+        f"[import-csv] 完成 处理行数={len(raws)} | "
+        f"库内 accounts={stored_accounts} contents={stored_contents} metrics={stored_metrics} | "
+        f"source={source.value} -> {database.url}"
     )
     return 0
 

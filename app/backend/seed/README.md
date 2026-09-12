@@ -9,16 +9,26 @@
 
 1. 复制模板：`copy data_template.csv my_data.csv`
 2. **删掉 3 行示例**，替换成你的真实数据（一行 = 一条内容）
-3. 导入：
+3. **先自检**（只校验，不写库）：
 
 ```powershell
 cd app/backend
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/my_data.csv --dry-run
+```
+
+4. 确认无误后正式导入：
+
+```powershell
 .venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/my_data.csv
 ```
 
-4. 验证：`GET /api/v1/accounts`、`GET /api/v1/contents`
+5. 验证：`GET /api/v1/accounts`、`GET /api/v1/contents`
 
-导入是**幂等**的，同一份 CSV 重复执行不会产生重复行。
+行为说明：
+
+- **幂等**：同一份 CSV 重复执行不会产生重复行。
+- **整体校验**：任一行有错则整体失败，**不会写一半留脏数据**；报错会指明是第几行、哪一列。
+- **编码**：Excel「另存为 CSV」默认的 **GBK 可以直接读**，也支持 UTF-8 与带 BOM 的「CSV UTF-8」。
 
 ## 字段说明
 
@@ -53,3 +63,23 @@ cd app/backend
 
 **30 条左右即可**。评测需要的不是数据量，而是「有 ground truth 的样本」：
 每个数字都能在原始页面查证。
+
+---
+
+## 合成演示数据（SYNTHETIC，**不是真实数据**）
+
+如果只是想**验证链路或做演示**，不必手抄 —— 用生成器造一份：
+
+```powershell
+.venv/Scripts/python.exe seed/generate_demo_data.py --output seed/demo_synthetic.csv
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/demo_synthetic.csv --db-url sqlite:///data/sma_demo.db --source synthetic
+```
+
+生成 2 个账号共 50 条内容：`AI 科普站`（稳定增长 + 一次爆款）、`效率工具研究所`（持续下滑）。
+日期相对运行当天生成（不会过期），固定随机种子（可复现）。
+
+**纪律（必须遵守）**：
+
+- 必须带 `--source synthetic`，使其在 `Metric.source` 中可被识别；
+- 必须导入**独立的 demo 库**（如 `data/sma_demo.db`），**不得混入真实库**；
+- **绝不可作为真实业务数据，也绝不可作为评测依据** —— 评测的 ground truth 只能来自真实数据。
