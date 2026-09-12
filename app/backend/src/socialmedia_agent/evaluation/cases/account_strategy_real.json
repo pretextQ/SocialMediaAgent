@@ -1,0 +1,28 @@
+[
+  {
+    "id": "real-gaogang",
+    "account_id": "bilibili:21401670",
+    "expected_tools": [
+      "get_account_profile",
+      "analyze_content_performance",
+      "get_recent_contents",
+      "get_historical_strategy",
+      "get_trend_data",
+      "search_operation_knowledge"
+    ],
+    "note": "真实公开数据（B站公开视频页/接口核验，source=manual）：单条高播放账号，六类事实都需要"
+  },
+  {
+    "id": "real-tongyi",
+    "account_id": "bilibili:3546585589877706",
+    "expected_tools": [
+      "get_account_profile",
+      "analyze_content_performance",
+      "get_recent_contents",
+      "get_historical_strategy",
+      "get_trend_data",
+      "search_operation_knowledge"
+    ],
+    "note": "真实公开数据：官方实验室账号，同样需要六类事实"
+  }
+]

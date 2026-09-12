@@ -93,10 +93,11 @@
 
 - Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
 - 评测范围：目前只有「工具选择质量」有指标；输出质量、RAG 检索质量、Prompt 回归尚未评测。
-- 所用数据为**程序化写入与合成（`synthetic`）的演示数据**，不是真实数据。合成数据由
-  `seed/generate_demo_data.py` 生成、以 `--source synthetic` 导入独立 demo 库，
-  **仅用于链路验证与演示，不可作为评测依据**。
-- 真实数据的导入通道已就绪：`import_csv`（见第 4 节），待填入约 30 条真实数据。
+- 评测数据有**两条来源**：**合成演示数据**（`source=synthetic`，仅链路验证，不可作评测依据）与
+  **真实公开数据**（19 条，`source=manual`，独立 real 库 `data/sma_real.db`）。**结论以真实数据那版为准**；
+  每条真实数据的数字都能在原始视频页核验（CSV 带 `url` 出处）。合成数据由
+  `seed/generate_demo_data.py` 生成、以 `--source synthetic` 导入独立 demo 库。
+- 真实数据的导入通道：`import_csv`（见第 4 节）；采集方式与局限见 [`seed/README.md`](../app/backend/seed/README.md)。
 
 ---
 
@@ -118,7 +119,9 @@
 - [x] 手工数据导入通道：`cli/import_csv.py`（兼容 GBK、`--dry-run`、整体校验、`--source`）+ `seed/` 模板与说明
 - [x] 合成演示数据通道：`seed/generate_demo_data.py` → 50 条 → 独立 demo 库（`source=synthetic`），仅用于链路验证与演示
 - [ ] P1.11 / 1.12 真机采集（`app/backend/.venv-crawler` 为空壳）
-- [ ] 填入约 30 条真实数据（用 `import_csv`），供评测使用
+- [x] 填入真实数据：已入库 **19 条真实公开数据**（19 个账号 / 19 条内容 / 95 条指标，`source=manual`），落在**独立 real 库** `data/sma_real.db`（与 demo 库分离，且不入 git）。
+      取数方式：**工具辅助阅读平台公开页面/接口 + 逐条核验**，每条保留 `url` 出处；**未提交任何采集脚本**（遵守 [`seed/README.md`](../app/backend/seed/README.md)「不要用自动化爬虫采集」）。
+      样本局限：19 个账号**各 1 条**内容，不能支撑账号内趋势分析。
 
 ### C. AI 内核补强
 
@@ -153,8 +156,23 @@
 
       **数据边界（重要）**：用例账号由 `seed/generate_demo_data.py` 生成，属 `source=synthetic`
       **合成演示数据**，按数据纪律**仅可用于链路验证**。其中确定性路径的调用次数与数据无关，
-      可作为**代码行为结论**；而 LLM 的 recall / 完全匹配率**不可**据此下结论，
-      需先完成「导入约 30 条真实数据」后重跑。
+      可作为**代码行为结论**；而 LLM 的 recall / 完全匹配率**不可**据此下结论。
+
+      **真实数据实测（同日，19 条真实公开数据，`--runs 3`）**：
+
+      | 模式 | recall | precision | f1 | 完全匹配率 | 重复调用 |
+      | --- | --- | --- | --- | --- | --- |
+      | rules | 1.000 ± 0.000 | 1.000 ± 0.000 | 1.000 ± 0.000 | **100% ± 0%** | 0.00 ± 0.00 |
+      | llm | 0.917 ± 0.000 | 1.000 ± 0.000 | 0.955 ± 0.000 | **50% ± 0%** | 0.00 ± 0.00 |
+
+      **结论（对 LLM 不利，但这是真实结论）**：真实数据上**确定性路径 100% 完全匹配，LLM 路径只有 50%**——
+      6 次 llm 运行中有 3 次稳定漏调 `search_operation_knowledge`。这为「`agentic` 默认关闭」
+      提供了**实测依据**，而不是靠直觉。用例见 `evaluation/cases/account_strategy_real.json`。
+
+      **口径警示（重要）**：这次 `llm` 的 `std` 全为 **0**，但逐用例看**并不稳定**——漏调在
+      `real-gaogang` 与 `real-tongyi` 之间轮换，**每轮的用例均值恰好相同**（均为 11/12），跨轮标准差因此被抹平。
+      **「std=0」不等于「稳定」**：当前汇总口径（先按轮求用例均值、再跨轮求标准差）会掩盖**轮内用例级抖动**；
+      要判稳必须看逐用例明细，或补一个「逐用例跨轮稳定率」指标。
 - [ ] RAG 语义嵌入：默认 `HashEmbedder` 不具备语义相似度（配置 `SMA_EMBEDDING_MODEL` 可切换）。
 
 ### D. P5 DoD 遗留
