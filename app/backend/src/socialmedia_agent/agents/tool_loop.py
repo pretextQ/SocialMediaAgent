@@ -98,14 +98,19 @@ def run_tool_loop(
     system_prompt: str,
     user_prompt: str,
     allowed_tools: list[str] | None = None,
-    max_steps: int = 6,
+    max_steps: int | None = None,
 ) -> ToolLoopResult:
-    """运行 tool-calling 循环，返回最终回答与完整调用记录。"""
+    """运行 tool-calling 循环，返回最终回答与完整调用记录。
+
+    max_steps 是 LLM 往返轮次上限。缺省时按「每个工具各调一次 + 最终回答 + 余量」计算：
+    写死小预算会让「逐个调用工具」的模型因预算不足而失败。
+    """
     tools = registry.list()
     if allowed_tools is not None:
         allowed = set(allowed_tools)
         tools = [tool for tool in tools if tool.name in allowed]
     schemas = export_tool_schemas(tools)
+    budget = max_steps if max_steps is not None else len(tools) + 2
 
     messages: list[dict] = [
         {"role": "system", "content": system_prompt},
@@ -113,7 +118,7 @@ def run_tool_loop(
     ]
     records: list[ToolCallRecord] = []
 
-    for step in range(1, max_steps + 1):
+    for step in range(1, budget + 1):
         result = gateway.call_with_tools(messages, schemas)
         if not result.success:
             return ToolLoopResult(
@@ -158,6 +163,6 @@ def run_tool_loop(
             })
 
     return ToolLoopResult(
-        ok=False, tool_calls=records, steps=max_steps,
-        error=f"达到最大步数（{max_steps}）仍未结束",
+        ok=False, tool_calls=records, steps=budget,
+        error=f"达到最大步数（{budget}）仍未结束",
     )

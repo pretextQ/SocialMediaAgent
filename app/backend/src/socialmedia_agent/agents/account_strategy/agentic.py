@@ -107,7 +107,7 @@ def gather_agentic(
     gateway: LLMGateway | None,
     account_id: str,
     *,
-    max_steps: int = 6,
+    max_steps: int | None = None,
 ) -> AgenticGather:
     """让模型自主选择工具收集账号事实；失败则回退确定性 gather。"""
     if gateway is None:

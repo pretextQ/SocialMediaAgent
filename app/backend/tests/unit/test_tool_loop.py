@@ -166,6 +166,26 @@ def test_tool_loop_respects_allowed_tools():
     assert exposed == ["get_account_profile"]
 
 
+def test_default_budget_allows_one_call_per_tool_plus_final():
+    """默认预算必须允许模型【逐个】调用每个工具（N 轮）+ 最终回答（1 轮）。"""
+    registry = ToolRegistry()
+    for index in range(6):
+        registry.register(
+            Tool(f"tool_{index}", f"工具{index}", AccountIdArgs, _profile)
+        )
+    provider = ScriptedToolProvider(
+        [call(f"tool_{index}", account_id="a") for index in range(6)] + [final("done")]
+    )
+
+    result = run_tool_loop(
+        registry, make_gateway(provider), system_prompt="s", user_prompt="u"
+    )
+
+    assert result.ok
+    assert result.steps == 7
+    assert [r.name for r in result.tool_calls] == [f"tool_{index}" for index in range(6)]
+
+
 def test_tool_loop_fails_when_max_steps_exceeded():
     provider = ScriptedToolProvider([call("get_account_profile", account_id="a")] * 5)
     result = run_tool_loop(
