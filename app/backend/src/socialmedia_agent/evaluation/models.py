@@ -29,18 +29,30 @@ class CaseOutcome:
     source: str  # 实际使用的 gather_source
     tool_trace: list[str]
     score: "ToolSelectionScore"
+    run_index: int = 0  # 第几轮（0-based）；runs=1 时恒为 0
 
 
 @dataclass
 class ModeSummary:
-    """某个模式在所有用例上的汇总。"""
+    """某个模式在所有用例上的汇总（多轮：先按轮聚合，再跨轮求均值与总体标准差）。
+
+    单轮（runs=1）时 std_* 恒为 0.0 —— 报告必须同时给出 runs，
+    否则「方差 0」会被误读成「结论稳定」。
+    """
 
     mode: str
     case_count: int
+    runs: int
     mean_recall: float
+    std_recall: float
     mean_precision: float
+    std_precision: float
     mean_f1: float
-    exact_match_rate: float
+    std_f1: float
+    mean_exact_match_rate: float
+    std_exact_match_rate: float
+    mean_duplicate_calls: float
+    std_duplicate_calls: float
     total_duplicate_calls: int
 
 

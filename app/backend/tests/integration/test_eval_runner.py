@@ -13,6 +13,7 @@ import json
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
 from sqlalchemy.orm import sessionmaker
 
 from socialmedia_agent.agents.tools.catalog import build_registry
@@ -194,7 +195,8 @@ def test_run_suite_compares_both_modes(tmp_path):
     by_mode = {s.mode: s for s in report.summaries}
     assert set(by_mode) == {"rules", "llm"}
     assert by_mode["llm"].case_count == 1
-    assert by_mode["llm"].exact_match_rate == 1.0
+    assert by_mode["llm"].runs == 1
+    assert by_mode["llm"].mean_exact_match_rate == 1.0
     assert by_mode["llm"].total_duplicate_calls == 0
     # 规则基线会重复调用同一工具 —— 指标必须能把两条路径区分开
     assert by_mode["rules"].total_duplicate_calls > 0
@@ -212,3 +214,55 @@ def test_render_markdown_reports_metrics(tmp_path):
     assert "工具选择" in md
     assert "rules" in md
     assert "recall" in md.lower()
+
+
+def test_run_suite_repeats_each_case_and_reports_runs(tmp_path):
+    """--runs N：同一用例重复 N 轮，逐轮记录 run_index，并报告总体标准差。"""
+    db = seed_db(tmp_path)
+    registry = make_registry(db, make_memory(tmp_path))
+    case = EvalCase(id="c1", account_id=AID, expected_tools=DETERMINISTIC_TOOLS)
+
+    report = run_suite([case], registry, None, modes=("rules",), runs=3)
+
+    assert len(report.outcomes) == 3
+    assert sorted(o.run_index for o in report.outcomes) == [0, 1, 2]
+    summary = report.summaries[0]
+    assert summary.runs == 3
+    assert summary.case_count == 1
+    # 确定性路径逐轮完全一致 -> 方差为 0（"方差为 0" 本身是有信息量的结论）
+    assert summary.std_recall == pytest.approx(0.0)
+    assert summary.std_duplicate_calls == pytest.approx(0.0)
+
+
+def test_run_suite_reports_variance_across_llm_runs(tmp_path):
+    """LLM 路径逐轮可能不同：均值与方差必须如实反映，而不是只报单次结果。"""
+    db = seed_db(tmp_path)
+    registry = make_registry(db, make_memory(tmp_path))
+    provider = ScriptedToolProvider([
+        call("get_account_profile"),
+        final(),  # 轮0：只调 1 个工具
+        call("get_account_profile"),
+        call("get_trend_data"),
+        final(),  # 轮1：调 2 个工具
+    ])
+    case = EvalCase(id="c1", account_id=AID, expected_tools=DETERMINISTIC_TOOLS)
+
+    report = run_suite([case], registry, make_gateway(provider), modes=("llm",), runs=2)
+
+    summary = report.summaries[0]
+    assert summary.runs == 2
+    # recall 分别为 1/6、2/6 -> 均值 0.25，总体标准差 = (2/6 - 1/6) / 2
+    assert summary.mean_recall == pytest.approx(0.25)
+    assert summary.std_recall == pytest.approx((2 / 6 - 1 / 6) / 2)
+    assert summary.std_recall > 0
+
+
+def test_render_markdown_reports_runs_and_variance(tmp_path):
+    db = seed_db(tmp_path)
+    registry = make_registry(db, make_memory(tmp_path))
+    case = EvalCase(id="c1", account_id=AID, expected_tools=DETERMINISTIC_TOOLS)
+
+    md = render_markdown(run_suite([case], registry, None, modes=("rules",), runs=2))
+
+    assert "轮次" in md
+    assert "±" in md
