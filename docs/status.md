@@ -80,6 +80,13 @@
 - 输出确实引用数据库事实：2 条内容、话题 `post_count=88`、指标 12000 播放 / 640 赞 / 58 评论均出现在结果中。
 - Memory 读-写闭环验证：第二次调用可读到 2 条历史策略。
 
+**2026-09-12 最小图指令路由真实联调**（`agentic=True`，同一 DeepSeek 端点）：
+
+- 「获取账号 `bilibili:70000001` 的资料」→ 模型选 `get_account_profile`，参数由模型补全（`account_id`）。
+- **口语化指令**「帮我看看那个 UP主 `bilibili:70000001` 最近发了些什么」→ 模型选 `get_recent_contents`
+  （`limit=10`）。该指令**正则路由不到**（有单测钉住这一前提），是 LLM 路由增量价值的直接证据。
+- 「今天天气怎么样」→ 模型不选任何函数 → **回退正则** → 返回人类可读提示，**未崩溃**。
+
 **验证边界**：
 
 - Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
