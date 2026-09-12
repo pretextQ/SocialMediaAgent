@@ -9,8 +9,9 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **254 passed**（含 CI 门槛）；
-**LLM 链路已于 2026-09-12 用真实端点验证**；前端与 Evaluation 尚未实施。
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **288 passed**（含 CI 门槛）；
+**LLM 链路已用真实端点验证**；**`account_strategy` 已支持 LLM 自主选择工具**（失败自动回退确定性路径）；
+前端与 Evaluation 尚未实施。
 
 ## 2. 基线
 
@@ -18,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 254 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 288 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions）+ `app/scripts/run_ci.ps1`（本地门槛） |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -106,9 +107,16 @@
 - [ ] P1.11 / 1.12 真机采集（`app/backend/.venv-crawler` 为空壳）
 - [ ] 填入约 30 条真实数据（用 `import_csv`），供评测使用
 
-### C. AI 内核补强（当前最大差距）
+### C. AI 内核补强
 
-- [ ] **真实 Tool Calling**：当前 `agents/graph_builder.py` 仍是正则路由 + 固定调用，LangGraph 为线性结构，无分支/条件路由。
+- [x] **Account Strategy 的真实 Tool Calling**：新增 `agents/tool_loop.py`（通用 tool-calling 循环）、
+      `llm/providers.py` 的 `ToolCallingProvider` / `complete_with_tools`、`account_strategy/agentic.py`。
+      `agentic=True` 时由模型自主选择工具；失败/超步数**自动回退**确定性 gather；
+      state 记录 `gather_source` 与 `tool_trace`（为 M3 的工具选择正确率铺路）。
+      **实测观察**：真实 LLM 在健康账号上 6 个工具各调 1 次；在下滑账号上出现**重复调用**
+      （recent_contents x2、search_operation_knowledge x2）—— 说明模型选择尚不精简，这正是 M3 要量化的点。
+- [ ] **`graph_builder.py` 的指令路由仍是正则**：本次只改造了 account_strategy，最小图未改。
+- [ ] **M3 评测套件**：上述 `tool_trace` 已就绪，但尚无指标计算。
 - [ ] RAG 语义嵌入：默认 `HashEmbedder` 不具备语义相似度（配置 `SMA_EMBEDDING_MODEL` 可切换）。
 
 ### D. P5 DoD 遗留
@@ -147,7 +155,7 @@
 | --- | --- |
 | crawler venv 为空壳 | 阻塞自动采集 P1.11/1.12；真实数据改走 `import_csv` 手工导入 |
 | RAG 默认非语义 | `HashEmbedder` 检索质量有限 |
-| LangGraph 无真实编排 | 无分支 / 循环 / LLM 决策，是「真 Agent」的主要差距 |
+| 工具决策仅部分实现 | `account_strategy` 已可 LLM 自主选工具；最小图路由仍为正则，且**尚无评测量化「选得对不对」** |
 | 无认证 / 无多租户 | 当前定位为**单用户本地工具**，不适用于多用户或企业场景 |
 | 合规 | 采集通道涉及平台 ToS 与非商用许可，见 [`compliance.md`](compliance.md) |
 

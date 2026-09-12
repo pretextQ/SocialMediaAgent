@@ -10,6 +10,7 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from socialmedia_agent.agents.account_strategy.agentic import gather_agentic
 from socialmedia_agent.agents.account_strategy.nodes import analyze, gather, persist, render_report
 from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput
 from socialmedia_agent.agents.tools.registry import ToolRegistry
@@ -22,11 +23,30 @@ class AccountStrategyState(TypedDict, total=False):
     strategy: AccountStrategyOutput
     memory_saved: dict
     report: str
+    tool_trace: list[str]
+    gather_source: str
 
 
-def build_account_strategy_graph(registry: ToolRegistry, gateway: LLMGateway | None = None):
+def build_account_strategy_graph(
+    registry: ToolRegistry,
+    gateway: LLMGateway | None = None,
+    agentic: bool = False,
+):
+    """agentic=True 时由 LLM 自主选择工具收集事实（失败自动回退确定性路径）。"""
+
     def node_gather(state: AccountStrategyState) -> dict[str, Any]:
-        return {"facts": gather(registry, state["account_id"])}
+        if agentic and gateway is not None:
+            result = gather_agentic(registry, gateway, state["account_id"])
+            return {
+                "facts": result.facts,
+                "tool_trace": result.tool_trace,
+                "gather_source": result.source,
+            }
+        return {
+            "facts": gather(registry, state["account_id"]),
+            "tool_trace": [],
+            "gather_source": "rules",
+        }
 
     def node_analyze(state: AccountStrategyState) -> dict[str, Any]:
         return {"strategy": analyze(gateway, state["facts"])}

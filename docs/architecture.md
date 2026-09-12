@@ -68,7 +68,7 @@ app/backend/
 │   ├── llm/                       # gateway / providers / circuit_breaker / factory
 │   ├── rag/                       # vector_store / embedder / faiss_store / knowledge / retriever
 │   ├── memory/                    # models / store / summarizer（独立库）
-│   ├── agents/                    # common / state / graph_builder / tools / 各 Agent
+│   ├── agents/                    # common / state / graph_builder / tool_loop / tools / 各 Agent
 │   ├── api/                       # main（应用工厂）/ deps / routers
 │   └── cli/                       # import_csv / ingest / seed_knowledge
 └── tests/                         # unit / integration / agent
@@ -216,11 +216,20 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 
 | 名称 | 形态 | 流程 |
 | --- | --- | --- |
-| `account_strategy` | LangGraph | gather -> analyze -> persist -> report（diagnosis 为其子集） |
+| `account_strategy` | LangGraph | gather -> analyze -> persist -> report（diagnosis 为其子集）；gather 支持 `agentic=True` |
 | `content_analysis` | LangGraph | gather -> analyze -> report |
 | `trend_analysis` | LangGraph | gather -> analyze -> report（`topics` 强制以 DB 事实回填） |
 | `title_optimization` | 内部能力（无 graph，API/MCP 直调） | gather -> analyze -> render |
 | `topic_recommendation` | 内部能力（无 graph，API/MCP 直调） | gather -> analyze -> render（硬去重） |
+
+**工具选择有两种模式**（`build_account_strategy_graph(registry, gateway, agentic=...)`）：
+
+- `agentic=False`（默认）：**确定性 gather**，固定调用 profile / performance / recent / history / trends。
+- `agentic=True`：把工具 schema 交给模型，由模型决定调哪些、调几次（`agents/tool_loop.py` 的通用循环）；
+  失败或超过最大步数时**自动回退**确定性 gather，绝不产出半份事实。
+
+两种模式都会在 state 中记录 `gather_source`（`llm` / `rules`）与 `tool_trace`（工具调用序列），
+供对比与「工具选择正确率」统计使用。
 
 ### 8.2 9 个内部 Tool
 

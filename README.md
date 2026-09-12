@@ -276,7 +276,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 
 ## 已知限制
 
-- **LangGraph 尚未实现 LLM 工具决策**：当前 `agents/graph_builder.py` 使用确定性正则路由 + 固定调用，图是线性结构，没有分支或 function calling。这是当前与「真正的 Agent」差距最大的地方。
+- **工具决策仅部分实现**：`account_strategy` 已支持 `agentic=True` 由 LLM 自主选择工具（`agents/tool_loop.py`，失败自动回退确定性路径）；但 `agents/graph_builder.py` 的最小图仍是正则路由，且尚无用数字量化「工具选得对不对」的评测。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。
