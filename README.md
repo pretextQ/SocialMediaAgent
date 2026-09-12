@@ -307,6 +307,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 | [`docs/data-model.md`](docs/data-model.md) | 领域模型、`canonical_id`、表结构与幂等键 |
 | [`docs/api.md`](docs/api.md) | HTTP API 清单与输出契约 |
 | [`docs/status.md`](docs/status.md) | 项目进度、DoD 对照、未完成清单、续作步骤 |
+| [`docs/issues.md`](docs/issues.md) | 工程问题记录：问题、怎么发现的、根因与教训 |
 | [`docs/adr/`](docs/adr/) | 架构决策记录与「移植候选」三线表 |
 | [`docs/source-analysis.md`](docs/source-analysis.md) | 第三方源码分析（MatrixFlow / MediaCrawler） |
 | [`docs/compliance.md`](docs/compliance.md) | License / 平台 ToS / 个人信息边界 |
