@@ -172,6 +172,7 @@ SocialMediaAgent/
 │   ├── backend/
 │   │   ├── pyproject.toml            # 依赖与 pytest 配置
 │   │   ├── .env.example              # 配置模板（.env 不提交）
+│   │   ├── alembic.ini + migrations/ # 数据库版本化迁移（Alembic，生产入口自动 upgrade head）
 │   │   ├── requirements-crawler.txt  # 采集隔离环境依赖（绝不装进核心 venv）
 │   │   ├── seed/                     # 知识库种子 + 手工数据模板（data_template.csv）与填写说明
 │   │   ├── src/socialmedia_agent/

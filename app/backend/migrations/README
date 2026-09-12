@@ -1,0 +1,37 @@
+# 数据库迁移（Alembic）
+
+## 这份目录是什么
+
+核心库（SQLite / 可换 PostgreSQL）的**版本化迁移**。用途：已有数据不必重建，
+只做增量变更（`create_all` 做不到这一点）。
+
+Memory 库**不在**这里——它用独立的 `MemoryBase`，与核心库物理分离。
+
+## 常用命令
+
+在 `app/backend` 下、用项目解释器执行：
+
+```powershell
+# 升到最新（创建 / 升级真实库）
+.venv/Scripts/python.exe -m alembic upgrade head
+
+# 查看当前版本
+.venv/Scripts/python.exe -m alembic current
+
+# 改完 ORM 后生成一个迁移（务必人工审阅生成的文件）
+.venv/Scripts/python.exe -m alembic revision --autogenerate -m "描述本次变更"
+```
+
+指定别的库（默认取 `Settings.database_url`，可用 `SMA_DB_URL` 覆盖）：
+
+```powershell
+$env:SMA_DB_URL = "sqlite:///data/sma_real.db"
+.venv/Scripts/python.exe -m alembic upgrade head
+```
+
+## 与 `create_all` 的关系
+
+- **测试与临时库**仍用 `Base.metadata.create_all`（快，且不把测试绑死在迁移上）；
+- **真实库**走 Alembic；
+- 二者是否一致由 `tests/unit/test_migrations.py` 自动守护：`upgrade head` 建出的表集合
+  必须与 `create_all` 的完全相同。**改了模型却忘了写迁移，这个测试会红。**

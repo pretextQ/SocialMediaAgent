@@ -196,7 +196,9 @@
 - [ ] 平台代号映射两处重复（`connectors/mediacrawler/schemas.py` vs `normalizers/ids.py`）
 - [ ] `build_memory_store()` 无 session 生命周期管理
 - [ ] `graph_builder.py` 仍兼任能力派发（路由解析已在 B1 拆到 `agents/router.py`）；`trend_analysis` 的平台默认值仍硬编码 `bilibili`
-- [ ] 缺 Alembic 迁移（现用 `Base.metadata.create_all`）
+- [x] **Alembic 迁移**：`migrations/`（基线 + 「删 comments」增量）、`alembic.ini`、`migrations/README`；
+      新增 `database/migrations.py::upgrade_to_head`，生产入口（API 启动 / `import_csv` / `ingest`）改走迁移；
+      **既有库自动收养**（stamp 基线再 upgrade）；模型-迁移漂移由 `tests/unit/test_migrations.py` 守护。
 - [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
 

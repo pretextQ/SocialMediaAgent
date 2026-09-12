@@ -35,6 +35,7 @@
 | 9 | 文档跑在实现前面 | 文档纪律 | 交叉阅读文档与代码 |
 | 10 | 授权「编造数据」时的边界处理 | 工程判断 | 明确「能做」与「该怎么做」的差别 |
 | 11 | 组合出的能力重复取数：评测指标把 bug 当成了「基线」 | 度量 / 组合 | 用 `RecordingRegistry` 度量**实际**调用序列 |
+| 12 | 接 Alembic 踩的三个坑（GBK 读 ini / 自动生成漏 import / stamp head 吞掉迁移） | 迁移 / 环境 | **测试先红** |
 
 ---
 
@@ -277,6 +278,39 @@ account_strategy 只额外取 performance / history / knowledge。
 - **指标出现「稳定的大数」时，要问一句它是不是 bug。** 修复前那条
   `assert rules.total_duplicate_calls > 0` 已经把缺陷写成了「规则基线的特征」——
   **测试固化了错误行为**。改测试预期是必要的，但必须说清这是「需求变更」而非「为了变绿」。
+
+---
+
+## 12. 接 Alembic 时踩的三个坑
+
+**背景**：给项目补版本化迁移（此前用 `Base.metadata.create_all`，表结构一变只能重建库）。
+
+**坑 1：ini 被系统 locale（GBK）读，写中文直接炸。**
+
+- 现象：`alembic revision` 报 `UnicodeDecodeError: 'gbk' codec can't decode byte 0xb1`。
+- 根因：Alembic 用 `encoding="locale"` 读 `alembic.ini`，中文 Windows 上是 GBK；而我往 ini 里加了中文注释。
+- 修复：`alembic.ini` **保持纯 ASCII**，说明挪到 `migrations/README`。
+
+**坑 2：autogenerate 漏掉自定义类型的 import。**
+
+- 现象：迁移能生成、**不能跑**——`NameError: name 'socialmedia_agent' is not defined`
+  （渲染出 `socialmedia_agent.database.base.UTCDateTime()` 却没有对应的 import）。
+- 修复：在 `script.py.mako` 里固定加 `import socialmedia_agent.database.base`，以后每份迁移都自带。
+
+**坑 3（最危险）：收养既有库时 `stamp head` 会把未执行的迁移标记成已完成。**
+
+- 现象：`test_drops_legacy_comments_table` 红——既有库升级后 `comments` 表**还在**。
+- 根因：既有库没有 `alembic_version`，直接 `upgrade` 会因「表已存在」失败，所以我先 `stamp head`。
+  但此时 `head` 已经是**新的「删表」迁移**，stamp 等于宣布它已执行 → 它永远不会跑。
+- 修复：收养时 stamp **基线版本**（`ScriptDirectory.get_base()`），再 `upgrade head`。
+
+**可迁移的教训**：
+
+- **「让状态位指向最新」是危险的默认直觉**：stamp 的语义是「**已经执行到哪**」，不是「想升到哪」。
+  二者混用会**静默吞掉迁移**——不报错，但该做的事没做。
+- 这个坑不是靠读文档发现的，是**测试先红**发现的；而那条测试测的正是「既有库升级后旧表应该消失」。
+  **能观察到副作用的测试**（表在不在）比「调用没报错」强得多。
+- 跨平台项目里，**配置文件也有编码**；往 ini 写非 ASCII 之前，先确认读它的程序用什么编码。
 
 ---
 

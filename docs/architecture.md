@@ -280,7 +280,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 
 | 环境 | 依赖 | 说明 |
 | --- | --- | --- |
-| 核心环境 | fastapi, uvicorn, pydantic, pydantic-settings, sqlalchemy, langgraph, openai, faiss-cpu, numpy, apscheduler, mcp, httpx, tenacity | 由 `pyproject.toml` 管理；dev 额外 pytest |
+| 核心环境 | fastapi, uvicorn, pydantic, pydantic-settings, sqlalchemy, alembic, langgraph, openai, faiss-cpu, numpy, apscheduler, mcp, httpx, tenacity | 由 `pyproject.toml` 管理；dev 额外 pytest |
 | 采集隔离环境 | playwright, aiosqlite, asyncmy, redis, pandas, opencv 等 | 见 `requirements-crawler.txt`；**绝不装进核心环境** |
 | 密钥 | `.env`（gitignore） | `.env.example` 提交占位；代码不硬编码 |
 | 存储 | SQLite（核心库 + Memory 独立库） | 不提前引入 PG / Redis / 向量数据库服务 |

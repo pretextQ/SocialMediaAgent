@@ -21,6 +21,7 @@ from pathlib import Path
 
 from socialmedia_agent.connectors.base import RawContent
 from socialmedia_agent.connectors.mapper import RawToDomainMapper
+from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType
 from socialmedia_agent.logging_config import setup_logging
@@ -158,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     database = Database(url=args.db_url)
-    database.create_all()
+    upgrade_to_head(database.url)
     mapper = RawToDomainMapper()
 
     accounts = contents = metrics = 0

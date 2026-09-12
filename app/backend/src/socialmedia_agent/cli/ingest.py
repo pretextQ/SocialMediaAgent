@@ -11,6 +11,7 @@ import sys
 
 from socialmedia_agent.connectors.mediacrawler import MediaCrawlerConnector
 from socialmedia_agent.connectors.mediacrawler.runner import MediaCrawlerRunError
+from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.services.ingest import IngestService
@@ -30,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     database = Database(url=args.db_url)
-    database.create_all()
+    upgrade_to_head(database.url)
     connector = MediaCrawlerConnector()
     service = IngestService(connector=connector, database=database)
 

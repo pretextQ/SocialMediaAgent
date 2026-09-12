@@ -97,7 +97,9 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 | `topics` | `keyword` 索引；`platforms` / `sentiment` 为 JSON |
 | `memory_entries` | **独立库**（`MemoryBase`，与核心库 Base 分离）：`account_id` / `category` 索引，`expires_at` 支持 TTL |
 
-SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。建表当前使用 `Base.metadata.create_all`（**尚未接入 Alembic**）。
+SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。**建表与变更走 Alembic 迁移**（`app/backend/migrations/`，
+生产入口 API 启动 / `import_csv` / `ingest` 都会 `upgrade head`）；测试与临时库仍可用 `Base.metadata.create_all`，
+两者一致性由 `tests/unit/test_migrations.py` 守护。既有（`create_all` 建的）库会被自动**收养**：先 stamp 基线版本、再 upgrade。
 
 ## 6. 幂等键（重复执行不产生脏数据）
 

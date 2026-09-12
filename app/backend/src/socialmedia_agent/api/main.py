@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.factory import build_gateway
 from socialmedia_agent.llm.gateway import LLMGateway
@@ -41,7 +42,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        db.create_all()
+        # 生产入口用 Alembic 迁移建表/升级（测试与临时库仍可用 Database.create_all）
+        upgrade_to_head(db.url)
         yield
 
     app = FastAPI(title="SocialMediaAgent", version="0.1.0", lifespan=lifespan)
