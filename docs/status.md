@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **307 passed**（含 CI 门槛）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **317 passed**（含 CI 门槛）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 M3（工具选择评测 + 多轮方差）**；前端尚未实施。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 307 passed（`tmp_path` 需放宽沙箱权限，见 [`issues.md`](issues.md) 附录） |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 317 passed（`tmp_path` 需放宽沙箱权限，见 [`issues.md`](issues.md) 附录） |
 | CI | `.github/workflows/ci.yml`（GitHub Actions）+ `app/scripts/run_ci.ps1`（本地门槛） |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -67,7 +67,9 @@
 
 ### P5 — 调度与周报 / API 文档 / MCP Server：达成；自有账号接入：**未达成**
 
-### P6 / P7 — 未开始
+### P6 — 目标 5 项评估，已实现 **1 项**（工具选择质量，M3）；其余 4 项未开始
+
+### P7 — 合规声明已完成；部署 / 架构图 / 演示脚本**未开始**
 
 ---
 
@@ -175,7 +177,7 @@
 - [ ] MCP / API 的 `list_accounts` / `list_contents` 重复（两处直查 Repository）
 - [ ] 平台代号映射两处重复（`connectors/mediacrawler/schemas.py` vs `normalizers/ids.py`）
 - [ ] `build_memory_store()` 无 session 生命周期管理
-- [ ] `graph_builder.py` 职责膨胀（正则路由 + Agent 派发 + 硬编码平台默认 `bilibili`）
+- [ ] `graph_builder.py` 仍兼任能力派发（路由解析已在 B1 拆到 `agents/router.py`）；`trend_analysis` 的平台默认值仍硬编码 `bilibili`
 - [ ] 缺 Alembic 迁移（现用 `Base.metadata.create_all`）
 - [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
@@ -200,12 +202,12 @@
 
 ## 9. 推荐续作步骤
 
-1. **C 组 Tool Calling** —— 把正则路由换成 LLM function calling + 条件分支，这是「真 Agent」的证明点。
-2. **A 组死代码清理**（需确认删除清单）。
-3. **填入真实数据（约 30 条）** —— 用 `import_csv` 手工导入；自动采集可改走官方 API / 自有账号只读适配器（更合规，见 ADR-0004）。
-4. **E 组 Evaluation** —— 没有评测的 LLM 系统无法回答「改了 prompt 是变好还是变坏」。
-5. **F 组部署与演示**。
-6. **H 前端**（可选）。
+1. ~~C 组 Tool Calling~~ / ~~A 组死代码清理~~ —— **均已完成**（见第 7 节 C 组与 A 组）。
+2. **填入真实数据（约 30 条）** —— 用 `import_csv` 手工导入；自动采集可改走官方 API / 自有账号只读适配器（更合规，见 ADR-0004）。
+   **这是当前唯一卡住「评测结论可信度」的事**：LLM 侧数字目前都长在合成演示账号上。
+3. **E 组 Evaluation 剩余维度**（RAG 检索质量 / 输出质量 / Prompt 回归）+ 接入 CI 强制门槛；可选：路由正确率评测（B2）。
+4. **F 组部署与演示**（docker-compose / 架构图 / 演示脚本）。
+5. **H 前端**（可选）。
 
 > 严格遵循 [`AGENTS.md`](../AGENTS.md)：每次一个小任务 -> 先写测试（TDD）-> 跑测试 -> `git diff` -> commit + push。
 
