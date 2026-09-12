@@ -72,8 +72,10 @@ cd app/backend
   每条都带原始链接 `url` 作为**出处**，可逐条回查核验。
 - **来源方式**：**工具辅助阅读平台公开页面/接口 + 逐条核验**后整理成 CSV；
   **没有提交任何采集脚本**（遵守本文件「不要用自动化爬虫采集」那条）。
-- **落盘位置**（均**不入 git**，与合成数据同策略）：
-  `data/real_public.csv` → 导入 `data/sma_real.db`（独立 real 库，`--source manual`）。
+- **落盘位置**：
+  - CSV **已入 git**：`seed/real_public.csv`（19 行 + 表头；含标题/发布时间/指标/原始链接，属公开数据）——
+    这样换机 clone 即可复现全部评测；
+  - 导入后的库 `data/sma_real.db`（独立 real 库，`--source manual`）**不入 git**，可由上面的 CSV 重建。
 - **用途**：`evaluation/cases/account_strategy_real.json` 的评测用例基于这批数据。
 - **局限（必须记住）**：19 个账号**各 1 条**内容，**不能**支撑账号内的时间趋势分析；
   样本也不代表平台整体，只是「有真实 ground truth 的一小批样本」。

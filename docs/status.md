@@ -121,7 +121,8 @@
 - [x] 合成演示数据通道：`seed/generate_demo_data.py` → **50 条内容 + 5 条话题** → 独立 demo 库（`source=synthetic`），仅用于链路验证与演示。
       话题经 `import_csv --topics` 导入（此前生成器不产出 Topic，导致 demo 库 `/trends/analysis` **恒为空结果**）
 - [ ] P1.11 / 1.12 真机采集（`app/backend/.venv-crawler` 为空壳）
-- [x] 填入真实数据：已入库 **19 条真实公开数据**（19 个账号 / 19 条内容 / 95 条指标，`source=manual`），落在**独立 real 库** `data/sma_real.db`（与 demo 库分离，且不入 git）。
+- [x] 填入真实数据：已入库 **19 条真实公开数据**（19 个账号 / 19 条内容 / 95 条指标，`source=manual`），落在**独立 real 库** `data/sma_real.db`（与 demo 库分离，**库不入 git**）。
+      数据 CSV **已入 git**：`seed/real_public.csv`（公开数据 + 原始链接出处），换机 clone 即可重建全部评测。
       取数方式：**工具辅助阅读平台公开页面/接口 + 逐条核验**，每条保留 `url` 出处；**未提交任何采集脚本**（遵守 [`seed/README.md`](../app/backend/seed/README.md)「不要用自动化爬虫采集」）。
       样本局限：19 个账号**各 1 条**内容，不能支撑账号内趋势分析。
 

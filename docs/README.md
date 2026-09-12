@@ -63,6 +63,7 @@ docs/
 ├── compliance.md         # License / ToS / 个人信息边界
 ├── source-analysis.md    # 第三方源码分析（已核验事实）
 ├── plan-frontend.md      # 前端规划（未实施）
+├── eval/                 # 评测证据：真实跑出的报告原文（可复核数字 + 重跑命令）
 └── adr/
     ├── README.md         # ADR 索引 + 第三方模块三线表
     ├── template.md       # ADR 模板

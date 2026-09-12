@@ -164,6 +164,36 @@ CI 配置见 `.github/workflows/ci.yml`（Python 3.12 + 全量 pytest）。
 
 ---
 
+## 换机 / 新环境
+
+仓库**自给自足**：源码、测试、迁移、评测用例、评测证据报告、以及**真实数据 CSV** 全部入库。
+新机器上只有一样东西必须手工带走——**`.env`（API Key）**，因为它不入 git。
+
+```powershell
+# 1) 依赖（Python 3.12）
+cd app/backend
+<PY312> -m venv .venv
+.venv/Scripts/python.exe -m pip install -e ".[dev]"
+
+# 2) 配置：把 API Key 写进 .env（从密码管理器取回）
+copy .env.example .env
+
+# 3) 重建真实数据（19 条；来源与出处见 seed/README.md）
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/real_public.csv --db-url sqlite:///data/sma_real.db
+
+# 4) 重建 demo 库（可选，演示用）
+.venv/Scripts/python.exe seed/generate_demo_data.py --output seed/demo_synthetic.csv --topics-output seed/demo_synthetic_topics.csv
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/demo_synthetic.csv --topics seed/demo_synthetic_topics.csv --db-url sqlite:///data/sma_demo.db --source synthetic
+
+# 5) 全量测试
+.venv/Scripts/python.exe -m pytest
+```
+
+数据库文件与知识库索引由上述步骤重建（`app/backend/data/` 已忽略，不入 git）。
+评测怎么重跑、每个数字对应哪份报告，见 [`docs/eval/README.md`](docs/eval/README.md)。
+
+---
+
 ## 目录结构
 
 ```
