@@ -19,7 +19,8 @@ from socialmedia_agent.memory.store import (
 )
 from socialmedia_agent.memory.summarizer import Summarizer
 
-NOW = datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc)
+# 锚点取真实当前时间：TTL 过期判断基于真实 now，硬编码日期会随日期推移失效。
+NOW = datetime.now(timezone.utc)
 
 
 @pytest.fixture

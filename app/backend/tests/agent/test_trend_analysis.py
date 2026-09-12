@@ -28,7 +28,8 @@ from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.llm.providers import LLMProvider
 from socialmedia_agent.repositories.topic_repo import TopicRepository
 
-NOW = datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc)
+# 锚点取真实当前时间：get_trend_data 按 now-period 过滤 last_seen，硬编码日期会随日期推移失效。
+NOW = datetime.now(timezone.utc)
 
 
 def seed_db(tmp_path) -> Database:
