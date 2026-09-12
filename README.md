@@ -104,14 +104,30 @@ cd app/backend
 
 注册 7 个工具：`account_strategy`、`analyze_content`、`analyze_trends`、`recommend_topics`、`optimize_title`、`list_accounts`、`list_contents`。
 
-### 6. 采集平台数据（当前**阻塞**）
+### 6. 导入数据
+
+#### 6.1 手工导入真实数据（**推荐，当前可用**）
+
+把真实数据填进 CSV 即可入库，**无需采集器、无需登录账号**。字段说明与可用数据范围见 [`seed/README.md`](app/backend/seed/README.md)：
+
+```powershell
+# 复制模板并填写（删除示例行，填约 30 行真实数据）
+copy seed/data_template.csv seed/my_data.csv
+.venv/Scripts/python.exe -m socialmedia_agent.cli.import_csv --input seed/my_data.csv
+```
+
+导入是**幂等**的（重复执行不产生重复行）；写入的指标 `source=manual`，与采集数据可区分、可审计。
+
+#### 6.2 采集公共数据（当前**阻塞**）
 
 ```powershell
 .venv/Scripts/python.exe -m socialmedia_agent.cli.ingest --keyword "AI" --platform bili --limit 5
 ```
 
 该命令需要 `app/backend/.venv-crawler` 按 `requirements-crawler.txt` 装好依赖并执行 `playwright install chromium`；
-当前该 venv 为空壳，**真机采集尚未跑通**。在它可用之前，可用 Repository 程序化写入数据：
+当前该 venv 为空壳，**真机采集尚未跑通**。只需要真实数据做分析时，请用 6.1。
+
+#### 6.3 程序化写入（开发 / 测试用）
 
 ```python
 from socialmedia_agent.database.session import Database
@@ -157,7 +173,7 @@ SocialMediaAgent/
 │   │   ├── pyproject.toml            # 依赖与 pytest 配置
 │   │   ├── .env.example              # 配置模板（.env 不提交）
 │   │   ├── requirements-crawler.txt  # 采集隔离环境依赖（绝不装进核心 venv）
-│   │   ├── seed/knowledge.md         # 运营知识库种子
+│   │   ├── seed/                     # 知识库种子 + 手工数据模板（data_template.csv）与填写说明
 │   │   ├── src/socialmedia_agent/
 │   │   │   ├── config.py             # pydantic-settings 三层回退（默认 < .env < 环境变量）
 │   │   │   ├── domain/               # 纯 Pydantic 领域模型 + canonical_id 规则
@@ -171,7 +187,7 @@ SocialMediaAgent/
 │   │   │   ├── memory/               # 账号历史运营特征（独立库 + TTL + 摘要）
 │   │   │   ├── agents/               # 3 个 Agent + 2 个内部能力 + 9 个内部 Tool
 │   │   │   ├── api/                  # FastAPI 应用工厂 + 路由
-│   │   │   └── cli/                  # ingest / seed_knowledge
+│   │   │   └── cli/                  # import_csv / ingest / seed_knowledge
 │   │   └── tests/                    # unit / integration / agent
 │   └── scripts/run_ci.ps1            # 本地 CI 门槛
 ├── docs/                             # 架构、ADR、API、计划、交接文档
@@ -262,7 +278,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 
 - **LangGraph 尚未实现 LLM 工具决策**：当前 `agents/graph_builder.py` 使用确定性正则路由 + 固定调用，图是线性结构，没有分支或 function calling。这是当前与「真正的 Agent」差距最大的地方。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
-- **真实采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通；现有数据均来自程序化写入。
+- **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。
 - **前端、Evaluation 未实施**：`docs/plan-frontend.md` 已规划；P6 评估套件尚未开发。
 - **周报接口未暴露**：周报由 APScheduler 落盘为 Markdown，尚无 HTTP 读取接口。

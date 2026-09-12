@@ -15,7 +15,7 @@
 | GET | `/contents/{content_id}` | 内容详情 | `Content` |
 | GET | `/metrics` | 指标列表（可按 `content_id`/`metric_type` 过滤） | `Metric[]` |
 
-> 注：HTTP API 目前无数据写入端点；数据输入走 CLI（`ingest` / `seed-knowledge`）或 Repository 程序化写入。
+> 注：HTTP API 目前无数据写入端点；数据输入走 CLI（`import_csv` 手工导入 / `ingest` 自动采集 / `seed_knowledge` 知识库）或 Repository 程序化写入。
 
 ## Agent 能力
 

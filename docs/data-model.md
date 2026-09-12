@@ -121,7 +121,14 @@ SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。建表当前使用 `Base
 | Metric | `(content_id, account_id, metric_type, source)` | **最新快照**：同一锚点同一指标重复采集时更新为最新值 |
 | Topic | `keyword` | 覆盖更新热度 / 时间窗口 / 摘要 |
 
-采集链路：`Connector -> Normalizer -> Unified Domain Model -> Repository.upsert`。
+数据入库链路（两条路径共用 `RawContent -> Normalizer -> Repository`）：
+
+```
+采集：Connector        -> RawContent --\
+手工：CLI import_csv   -> RawContent --/ -> Normalizer(Mapper) -> Unified Domain Model -> Repository.upsert
+```
+
+`RawContent.source` 标注来源（默认 `mediacrawler`；手工导入为 `manual`），最终写入 `Metric.source`，保证来源可追溯。
 
 ## 7. 已知语义问题
 

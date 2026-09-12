@@ -53,7 +53,7 @@ app/backend/
 ├── pyproject.toml
 ├── .env.example
 ├── requirements-crawler.txt       # 采集隔离环境依赖（绝不装进核心 venv）
-├── seed/knowledge.md              # 运营知识库种子
+├── seed/                          # 知识库种子 + 手工数据模板（data_template.csv）与说明
 ├── data/                          # SQLite 运行数据（gitignore）
 ├── src/socialmedia_agent/
 │   ├── config.py                  # pydantic-settings 三层回退
@@ -70,7 +70,7 @@ app/backend/
 │   ├── memory/                    # models / store / summarizer（独立库）
 │   ├── agents/                    # common / state / graph_builder / tools / 各 Agent
 │   ├── api/                       # main（应用工厂）/ deps / routers
-│   └── cli/                       # ingest / seed_knowledge
+│   └── cli/                       # import_csv / ingest / seed_knowledge
 └── tests/                         # unit / integration / agent
 ```
 
@@ -130,17 +130,29 @@ app/backend/
 
 ## 5. 数据流
 
-### 5.1 采集链路
+### 5.1 数据入库链路（两条路径，殊途同归）
+
+自动采集（当前阻塞）：
 
 ```
 CLI / Scheduler 触发 ingest
   -> MediaCrawlerConnector.search()
      -> runner：隔离 venv 子进程执行爬虫，写入中转发 SQLite
      -> reader：按【显式 schema】读取（禁止动态列名探测）
-  -> RawToDomainMapper：应用 Normalizer -> Account / Content / Metric
-  -> Repository 幂等 upsert -> 核心库（唯一权威）
+  -> RawContent -> RawToDomainMapper(Normalizer) -> Repository 幂等 upsert
 ```
 
+手工导入（可用）：
+
+```
+CLI import_csv --input <csv>
+  -> 逐行解析 -> RawContent（source=manual）
+  -> RawToDomainMapper(Normalizer)，与采集完全同一条链路
+  -> Repository 幂等 upsert -> 核心库
+```
+
+两条路径**共用** `RawContent -> Normalizer -> Repository`，因此口径归一与幂等语义完全一致；
+差异只体现在 `source` 字段（`mediacrawler` / `manual`），保证数据可追溯。
 中转发 SQLite 仅作临时中转，不作为业务查询源。
 
 ### 5.2 查询与 Agent
@@ -181,7 +193,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | `agents/tools/` | 9 个内部 Tool | Agent 取数的唯一通道 |
 | `agents/*` | 各 Agent 的 gather / analyze / report 节点与合成图 | 输出契约固定 + 有回归测试 |
 | `api/` | FastAPI 应用工厂与路由 | 依赖注入 gateway / retriever |
-| `cli/` | 采集与知识库种子入口 | 支持流程可重复执行 |
+| `cli/` | 数据导入（`import_csv`）、采集（`ingest`）、知识库种子（`seed_knowledge`） | 支持流程可重复执行 |
 
 ---
 
