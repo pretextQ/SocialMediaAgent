@@ -63,6 +63,53 @@ class EvalReport:
 
 
 @dataclass(frozen=True)
+class GroundingCase:
+    """一条数据准确性用例：agent 类型（account / content）+ 目标 id。"""
+
+    id: str
+    kind: str  # account | content
+    target_id: str
+    note: str = ""
+
+
+@dataclass
+class GroundingOutcome:
+    case_id: str
+    kind: str
+    target_id: str
+    score: "GroundingScore"
+    report: str
+    run_index: int = 0
+
+
+@dataclass
+class GroundingReport:
+    """汇总。
+
+    `mean_grounded_rate` 是**逐用例率再取均值**（每例等权）；如需按数字加权的整体率，
+    用 `1 - ungrounded_count / number_count`。
+    """
+
+    outcomes: list["GroundingOutcome"] = field(default_factory=list)
+    case_count: int = 0
+    runs: int = 0
+    number_count: int = 0
+    ungrounded_count: int = 0
+    mean_grounded_rate: float = 0.0
+    std_grounded_rate: float = 0.0
+
+
+@dataclass(frozen=True)
+class GroundingScore:
+    """数据准确性评分：报告中的事实性大数字有多少能在 DB 事实中找到出处。"""
+
+    report_numbers: list[str]
+    grounded: list[str]
+    ungrounded: list[str]
+    grounded_rate: float
+
+
+@dataclass(frozen=True)
 class RetrievalScore:
     """一次 RAG 检索的评分（@k 口径见 evaluation/retrieval.py）。"""
 

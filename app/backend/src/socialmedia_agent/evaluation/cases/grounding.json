@@ -1,0 +1,26 @@
+[
+  {
+    "id": "real-gaogang-strategy",
+    "kind": "account",
+    "target_id": "bilibili:21401670",
+    "note": "真实公开数据账号；跑 account_strategy 后检查报告数字是否都能在 facts 中找到出处"
+  },
+  {
+    "id": "real-tongyi-strategy",
+    "kind": "account",
+    "target_id": "bilibili:3546585589877706",
+    "note": "真实公开数据账号"
+  },
+  {
+    "id": "real-gaogang-content",
+    "kind": "content",
+    "target_id": "bilibili:BV1DKGE6NE1U",
+    "note": "真实公开视频；内容分析报告中的播放/点赞/收藏必须可溯源"
+  },
+  {
+    "id": "real-tongyi-content",
+    "kind": "content",
+    "target_id": "bilibili:BV1yyQEBdEZX",
+    "note": "真实公开视频"
+  }
+]
