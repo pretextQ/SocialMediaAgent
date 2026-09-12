@@ -9,6 +9,8 @@
 - 重试：临时失败后成功（retry 生效）
 """
 
+import json
+
 import pytest
 from pydantic import BaseModel
 
@@ -187,4 +189,80 @@ def test_openai_compat_provider_calls_endpoint():
     result = gateway.call("sys", "user", response_format="json")
     assert result.success
     assert result.data == {"ok": True}
+    client.close()
+
+
+def test_openai_compat_provider_sends_tools_and_parses_tool_calls():
+    """M2：Provider 必须支持 function calling —— 请求带 tools，响应解析为 ProviderToolCall。"""
+    import httpx2
+
+    from socialmedia_agent.llm.providers import OpenAICompatProvider
+
+    captured: dict = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx2.Response(200, json={
+            "id": "mock-1",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "get_account_profile",
+                            "arguments": '{"account_id": "bilibili:1"}',
+                        },
+                    }],
+                },
+            }],
+        })
+
+    client = httpx2.Client(transport=httpx2.MockTransport(handler))
+    provider = OpenAICompatProvider(
+        api_key="test-key",
+        base_url="https://mock.example/v1",
+        model="deepseek-flash",
+        http_client=client,
+    )
+    schemas = [{
+        "type": "function",
+        "function": {"name": "get_account_profile", "parameters": {"type": "object"}},
+    }]
+
+    result = provider.complete_with_tools([{"role": "user", "content": "查一下账号"}], schemas)
+
+    assert captured["body"]["tools"] == schemas
+    assert len(result.tool_calls) == 1
+    assert result.tool_calls[0].name == "get_account_profile"
+    assert result.tool_calls[0].arguments == {"account_id": "bilibili:1"}
+    assert result.tool_calls[0].id == "call_1"
+    client.close()
+
+
+def test_openai_compat_provider_returns_final_text_without_tool_calls():
+    """模型不再请求工具时，返回 content 且 tool_calls 为空。"""
+    import httpx2
+
+    from socialmedia_agent.llm.providers import OpenAICompatProvider
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={
+            "id": "mock-2",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": "分析完成"}}],
+        })
+
+    client = httpx2.Client(transport=httpx2.MockTransport(handler))
+    provider = OpenAICompatProvider(
+        api_key="test-key", base_url="https://mock.example/v1", model="deepseek-flash",
+        http_client=client,
+    )
+
+    result = provider.complete_with_tools([{"role": "user", "content": "hi"}], [])
+
+    assert result.content == "分析完成"
+    assert result.tool_calls == []
     client.close()

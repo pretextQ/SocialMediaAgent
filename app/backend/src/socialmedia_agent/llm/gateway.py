@@ -14,7 +14,7 @@ from typing import Type
 from tenacity import RetryError, retry, stop_after_attempt, wait_fixed
 
 from socialmedia_agent.llm.circuit_breaker import CircuitBreaker, CircuitBreakerOpen
-from socialmedia_agent.llm.providers import LLMProvider
+from socialmedia_agent.llm.providers import LLMProvider, ProviderToolResult, ToolCallingProvider
 
 logger = logging.getLogger(__name__)
 
@@ -102,3 +102,39 @@ class LLMGateway:
 
         logger.debug("LLM 调用成功 format=%s", response_format)
         return LLMCallResult(success=True, data=parsed)
+
+    def call_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        max_retries: int = 2,
+    ) -> LLMCallResult:
+        """带工具 schema 调用模型；data 为 ProviderToolResult。复用同一套重试与熔断。"""
+        if not isinstance(self.provider, ToolCallingProvider):
+            return LLMCallResult(
+                success=False,
+                error=f"Provider {type(self.provider).__name__} 不支持 tool calling",
+            )
+        logger.debug("LLM tool-calling 开始 tools=%s", len(tools))
+
+        def _attempt() -> ProviderToolResult:
+            return self.breaker.call(self.provider.complete_with_tools, messages, tools)
+
+        try:
+            payload = retry(
+                stop=stop_after_attempt(max_retries + 1),
+                wait=wait_fixed(0),
+                reraise=True,
+            )(_attempt)()
+        except CircuitBreakerOpen as exc:
+            logger.warning("LLM 熔断开启: %s", exc)
+            return LLMCallResult(success=False, error=str(exc))
+        except RetryError:
+            logger.warning("LLM tool-calling 重试耗尽")
+            return LLMCallResult(success=False, error="LLM 调用重试耗尽")
+        except Exception as exc:
+            logger.warning("LLM tool-calling 失败 type=%s", type(exc).__name__)
+            return LLMCallResult(success=False, error=f"LLM 调用失败: {exc}")
+
+        logger.debug("LLM tool-calling 成功 tool_calls=%s", len(payload.tool_calls))
+        return LLMCallResult(success=True, data=payload)
