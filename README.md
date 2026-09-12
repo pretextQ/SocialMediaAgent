@@ -187,6 +187,7 @@ SocialMediaAgent/
 │   │   │   ├── memory/               # 账号历史运营特征（独立库 + TTL + 摘要）
 │   │   │   ├── agents/               # 3 个 Agent + 2 个内部能力 + 9 个内部 Tool
 │   │   │   ├── api/                  # FastAPI 应用工厂 + 路由
+│   │   │   ├── evaluation/           # 工具选择评测（指标 + runner + case 集）
 │   │   │   └── cli/                  # import_csv / ingest / seed_knowledge
 │   │   └── tests/                    # unit / integration / agent
 │   └── scripts/run_ci.ps1            # 本地 CI 门槛
@@ -276,7 +277,8 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 
 ## 已知限制
 
-- **工具决策仅部分实现**：`account_strategy` 已支持 `agentic=True` 由 LLM 自主选择工具（`agents/tool_loop.py`，失败自动回退确定性路径）；但 `agents/graph_builder.py` 的最小图仍是正则路由，且尚无用数字量化「工具选得对不对」的评测。
+- **工具决策仅部分实现**：`account_strategy` 已支持 `agentic=True` 由 LLM 自主选择工具（`agents/tool_loop.py`，失败自动回退确定性路径）；但 `agents/graph_builder.py` 的最小图仍是正则路由。
+- **评测只覆盖工具选择**：`evaluation/` 量化的是「选对工具没有」，且**单次运行不足以作为证据**（LLM 温度为 0.2，存在随机性）；输出质量、RAG 检索质量尚未评测。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。

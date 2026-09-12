@@ -70,6 +70,7 @@ app/backend/
 │   ├── memory/                    # models / store / summarizer（独立库）
 │   ├── agents/                    # common / state / graph_builder / tool_loop / tools / 各 Agent
 │   ├── api/                       # main（应用工厂）/ deps / routers
+│   ├── evaluation/                # 工具选择评测：指标 / runner / case 集
 │   └── cli/                       # import_csv / ingest / seed_knowledge
 └── tests/                         # unit / integration / agent
 ```
@@ -193,6 +194,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | `agents/tools/` | 9 个内部 Tool | Agent 取数的唯一通道 |
 | `agents/*` | 各 Agent 的 gather / analyze / report 节点与合成图 | 输出契约固定 + 有回归测试 |
 | `api/` | FastAPI 应用工厂与路由 | 依赖注入 gateway / retriever |
+| `evaluation/` | 工具选择质量评测：指标、runner、case 集 | 用 RecordingRegistry **实测**调用序列，不引用手写常量 |
 | `cli/` | 数据导入（`import_csv`）、采集（`ingest`）、知识库种子（`seed_knowledge`） | 支持流程可重复执行 |
 
 ---
@@ -229,7 +231,7 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
   失败或超过最大步数时**自动回退**确定性 gather，绝不产出半份事实。
 
 两种模式都会在 state 中记录 `gather_source`（`llm` / `rules`）与 `tool_trace`（工具调用序列），
-供对比与「工具选择正确率」统计使用。
+供对比与「工具选择正确率」统计使用；`evaluation/` 消费这两个字段产出可复核的数字。
 
 ### 8.2 9 个内部 Tool
 

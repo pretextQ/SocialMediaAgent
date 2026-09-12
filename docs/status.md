@@ -83,6 +83,7 @@
 **验证边界**：
 
 - Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
+- 评测范围：目前只有「工具选择质量」有指标；输出质量、RAG 检索质量、Prompt 回归尚未评测。
 - 所用数据为**程序化写入与合成（`synthetic`）的演示数据**，不是真实数据。合成数据由
   `seed/generate_demo_data.py` 生成、以 `--source synthetic` 导入独立 demo 库，
   **仅用于链路验证与演示，不可作为评测依据**。
@@ -116,7 +117,18 @@
       **实测观察**：真实 LLM 在健康账号上 6 个工具各调 1 次；在下滑账号上出现**重复调用**
       （recent_contents x2、search_operation_knowledge x2）—— 说明模型选择尚不精简，这正是 M3 要量化的点。
 - [ ] **`graph_builder.py` 的指令路由仍是正则**：本次只改造了 account_strategy，最小图未改。
-- [ ] **M3 评测套件**：上述 `tool_trace` 已就绪，但尚无指标计算。
+- [x] **M3 工具选择评测**：`evaluation/`（指标 + runner + CLI + case 集）+ `RecordingRegistry` 实测调用序列。
+      **首次实测（真实 LLM，2 个合成演示账号）**：
+
+      | 模式 | recall | precision | f1 | 完全匹配率 | 重复调用 |
+      | --- | --- | --- | --- | --- | --- |
+      | rules | 1.000 | 1.000 | 1.000 | 100% | 6 |
+      | llm | 1.000 | 1.000 | 1.000 | 100% | 0 |
+
+      **结论**：两条路径取到的工具**集合**都对；可量化的差异在**重复调用**——确定性 gather 与
+      `gather_topics` 会重复取 profile/recent/trends（每例 3 次重复），LLM 路径为 0。
+      **重要限制**：LLM 温度 0.2，单次运行**不足以作为证据**（更早的手工运行中模型确有重复调用），
+      需要多次重复取均值并报告方差后再下结论。
 - [ ] RAG 语义嵌入：默认 `HashEmbedder` 不具备语义相似度（配置 `SMA_EMBEDDING_MODEL` 可切换）。
 
 ### D. P5 DoD 遗留

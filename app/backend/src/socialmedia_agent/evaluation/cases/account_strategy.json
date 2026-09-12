@@ -1,0 +1,28 @@
+[
+  {
+    "id": "demo-healthy",
+    "account_id": "bilibili:70000001",
+    "expected_tools": [
+      "get_account_profile",
+      "analyze_content_performance",
+      "get_recent_contents",
+      "get_historical_strategy",
+      "get_trend_data",
+      "search_operation_knowledge"
+    ],
+    "note": "合成演示账号（上升期，有内容/指标/趋势）：要给出可信诊断与策略，六类事实都需要"
+  },
+  {
+    "id": "demo-declining",
+    "account_id": "bilibili:70000002",
+    "expected_tools": [
+      "get_account_profile",
+      "analyze_content_performance",
+      "get_recent_contents",
+      "get_historical_strategy",
+      "get_trend_data",
+      "search_operation_knowledge"
+    ],
+    "note": "合成演示账号（下滑期）：同上；额外关注近期内容与历史策略以解释下滑"
+  }
+]
