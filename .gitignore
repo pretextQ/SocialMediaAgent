@@ -45,3 +45,6 @@ crawler-install.log.err
 # OS
 .DS_Store
 Thumbs.db
+
+# 本地 CI 脚本（app/scripts/run_ci.ps1 -BaseTemp）的 pytest basetemp
+.pytest_tmp/
