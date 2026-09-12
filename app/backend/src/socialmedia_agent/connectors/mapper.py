@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from socialmedia_agent.connectors.base import RawContent
 from socialmedia_agent.domain.account import Account
 from socialmedia_agent.domain.content import Content
-from socialmedia_agent.domain.enums import MetricSource, OwnerType
+from socialmedia_agent.domain.enums import OwnerType
 from socialmedia_agent.domain.metric import Metric
 from socialmedia_agent.normalizers import NormalizerRegistry, default_registry
 
@@ -57,7 +57,7 @@ class RawToDomainMapper:
                     metric_type=metric_type,
                     value=value,
                     captured_at=captured_at,
-                    source=MetricSource.MEDIACRAWLER,
+                    source=raw.source,
                     raw_value=str(raw_value) if raw_value is not None else None,
                 )
             )

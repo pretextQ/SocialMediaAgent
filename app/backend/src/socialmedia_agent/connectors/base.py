@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from socialmedia_agent.domain.enums import ContentType, MetricType, Platform
+from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
 
 
 @dataclass
@@ -26,6 +26,8 @@ class RawContent:
     publish_time: object | None = None
     url: str | None = None
     metrics: dict[MetricType, object] = field(default_factory=dict)
+    # 数据来源（审计用）：采集默认 mediacrawler，手工导入等场景可覆盖
+    source: MetricSource = MetricSource.MEDIACRAWLER
 
 
 class PlatformConnector(ABC):

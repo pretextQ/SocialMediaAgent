@@ -1,0 +1,4 @@
+platform,account_platform_id,account_nickname,content_platform_id,title,content,content_type,publish_time,url,views,likes,comments,shares,favorites
+bili,10001,示例账号,90001,示例标题一,,video,2026-09-01T10:00:00Z,,12000,640,58,20,300
+bili,10001,示例账号,90002,示例标题二,,video,2026-09-03T10:00:00Z,,900,20,1,3,10
+xhs,20002,示例账号二,note-30001,示例笔记一,,note,2026-09-05T20:00:00Z,,4500,300,12,8,150
