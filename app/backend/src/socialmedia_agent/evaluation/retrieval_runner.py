@@ -122,6 +122,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--cases", required=True, help="用例 JSON 路径")
     parser.add_argument("--knowledge", default=str(DEFAULT_KNOWLEDGE), help="知识库种子 Markdown")
     parser.add_argument("--k", type=int, default=DEFAULT_K, help="top-k")
+    parser.add_argument(
+        "--min-recall",
+        type=float,
+        default=None,
+        help="门槛：recall@k 低于该值则以非零退出码结束（不设则只报告、不当门槛）",
+    )
+    parser.add_argument(
+        "--min-mrr",
+        type=float,
+        default=None,
+        help="门槛：MRR 低于该值则以非零退出码结束",
+    )
     parser.add_argument("--report", default=None, help="输出 Markdown 报告路径")
     return parser
 
@@ -143,6 +155,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[retrieval-eval] 报告已写入 {args.report}")
     else:
         print(markdown)
+
+    # 门槛：只有会失败，才叫 CI 门槛
+    summary = report.summary
+    failures: list[str] = []
+    if summary is not None:
+        if args.min_recall is not None and summary.mean_recall_at_k < args.min_recall:
+            failures.append(
+                f"recall@{args.k}={summary.mean_recall_at_k:.3f} < --min-recall {args.min_recall}"
+            )
+        if args.min_mrr is not None and summary.mrr < args.min_mrr:
+            failures.append(f"MRR={summary.mrr:.3f} < --min-mrr {args.min_mrr}")
+
+    if failures:
+        for line in failures:
+            print(f"[retrieval-eval] FAILED: {line}", file=sys.stderr)
+        return 1
     return 0
 
 

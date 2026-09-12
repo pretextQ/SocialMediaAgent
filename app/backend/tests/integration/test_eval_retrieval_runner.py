@@ -9,6 +9,7 @@ import json
 from socialmedia_agent.evaluation.retrieval_runner import (
     build_seed_retriever,
     load_cases,
+    main,
     render_markdown,
     run_suite,
 )
@@ -53,6 +54,44 @@ def test_run_suite_reports_miss_as_zero():
 
     assert report.summary.hit_rate == 0.0
     assert report.summary.mrr == 0.0
+
+
+def _write_cases(tmp_path, rows):
+    path = tmp_path / "cases.json"
+    path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_main_fails_when_below_threshold(tmp_path):
+    """门槛的意义在于『会失败』：低于阈值必须以非零退出码结束，否则 CI 形同虚设。"""
+    cases = _write_cases(tmp_path, [
+        {"id": "miss", "query": "完全不相关的主题 zzzz", "expected_ids": ["不存在的文档"]}
+    ])
+
+    code = main(["--cases", str(cases), "--knowledge", SEED_KNOWLEDGE, "--k", "3",
+                 "--min-recall", "0.5"])
+
+    assert code == 1
+
+
+def test_main_passes_when_above_threshold(tmp_path):
+    cases = _write_cases(tmp_path, [
+        {"id": "hit", "query": "标题写作方法", "expected_ids": ["标题写作方法"]}
+    ])
+
+    code = main(["--cases", str(cases), "--knowledge", SEED_KNOWLEDGE, "--k", "3",
+                 "--min-recall", "0.5", "--min-mrr", "0.5"])
+
+    assert code == 0
+
+
+def test_main_without_threshold_always_passes(tmp_path):
+    """不给阈值时只看分数、不当门槛（保持原有行为）。"""
+    cases = _write_cases(tmp_path, [
+        {"id": "miss", "query": "完全不相关的主题 zzzz", "expected_ids": ["不存在的文档"]}
+    ])
+
+    assert main(["--cases", str(cases), "--knowledge", SEED_KNOWLEDGE, "--k", "3"]) == 0
 
 
 def test_render_markdown_reports_metrics():
