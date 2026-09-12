@@ -7,7 +7,13 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+    scoped_session,
+    sessionmaker,
+)
 
 from socialmedia_agent.database.base import UTCDateTime
 from socialmedia_agent.database.engine import create_db_engine, get_memory_database_url
@@ -32,12 +38,36 @@ class MemoryRecord(MemoryBase):
 
 
 class SQLAlchemyMemoryStore:
-    def __init__(self, session):
+    """Memory 存储。
+
+    `session` 可能是：
+
+    - `scoped_session`（`build_memory_store` 的产物）→ **每线程**一个 Session，
+      避免 FastAPI 线程池并发共用一个非线程安全的 Session；
+    - 普通 `Session`（测试直接传入）→ 由调用方负责其生命周期。
+    """
+
+    def __init__(self, session, engine=None):
         self.session = session
+        self._engine = engine
 
     @staticmethod
     def create_all(engine) -> None:
         MemoryBase.metadata.create_all(engine)
+
+    def dispose(self) -> None:
+        """释放 session 与引擎（应用关闭时调用；幂等）。
+
+        此前**从不释放**：引擎与 Session 一直留到进程结束。
+        """
+        remover = getattr(self.session, "remove", None)
+        if callable(remover):
+            remover()
+        else:
+            self.session.close()
+        if self._engine is not None:
+            self._engine.dispose()
+            self._engine = None
 
     def add(self, entry: MemoryEntry) -> MemoryEntry:
         record = MemoryRecord(
@@ -94,8 +124,15 @@ class SQLAlchemyMemoryStore:
 
 
 def build_memory_store(url: str | None = None) -> SQLAlchemyMemoryStore:
-    """构造 Memory 独立库 store（建表 + 会话）。"""
+    """构造 Memory 独立库 store（建表 + **线程局部**会话）。
+
+    用 `scoped_session` 而不是「一个 Session」：FastAPI 的同步端点在**线程池**里执行，
+    长期存活的单个 Session 会被多线程并发使用（Session 不是线程安全的；实测中出现过
+    `Session.merge() ... Results may not be consistent` 警告）。
+
+    生命周期由 `dispose()` 收口——应用关闭时调用（见 `api/main.py` 的 lifespan）。
+    """
     engine = create_db_engine(url or get_memory_database_url())
     SQLAlchemyMemoryStore.create_all(engine)
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
-    return SQLAlchemyMemoryStore(factory())
+    factory = scoped_session(sessionmaker(bind=engine, expire_on_commit=False))
+    return SQLAlchemyMemoryStore(factory, engine=engine)

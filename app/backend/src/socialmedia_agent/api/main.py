@@ -45,6 +45,10 @@ def create_app(
         # 生产入口用 Alembic 迁移建表/升级（测试与临时库仍可用 Database.create_all）
         upgrade_to_head(db.url)
         yield
+        # 关闭时释放 Memory store 的 session 与引擎（此前从不释放）
+        store = getattr(app.state, "memory_store", None)
+        if store is not None:
+            store.dispose()
 
     app = FastAPI(title="SocialMediaAgent", version="0.1.0", lifespan=lifespan)
 
