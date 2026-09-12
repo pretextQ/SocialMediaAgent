@@ -183,7 +183,12 @@ assert 0.0 == 1.0   # exact_match_rate
 
 **修复**：核对时显式传大 limit（`limit=10**9`）。
 
-**顺带的真实发现（尚未修复）**：`api/routers/accounts.py` 调用 `AccountRepository.list(platform=...)` 同样没传 limit，意味着 **`GET /accounts` 会静默最多返回 100 条**。数据量小时看不出来，量上来就是隐性 bug。
+**顺带的真实发现（已修复）**：`api/routers/accounts.py` 调用 `AccountRepository.list(platform=...)` 同样没传 limit，意味着 **`GET /accounts` 会静默最多返回 100 条**。数据量小时看不出来，量上来就是隐性 bug。
+
+> **修复（后续补）**：该端点原先**根本不接受 `limit` 参数**（FastAPI 静默忽略未知查询参数），所以上限既隐性又无法调高。现显式暴露
+> `limit`（默认 100 / 最大 500，与 `/contents`、`/metrics` 对齐），MCP 的 `list_accounts` 同步支持；回归测试为
+> 「120 个账号 → 默认返回 100，传 `limit=500` 取回 120」。
+> 注意：这只修了「**无法调高上限**」，不是「取消上限」——无界查询同样不可接受。
 
 **可迁移的教训**：
 

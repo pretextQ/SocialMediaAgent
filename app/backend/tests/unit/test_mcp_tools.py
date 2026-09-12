@@ -119,3 +119,19 @@ def test_mcp_list_accounts_and_contents(tmp_path):
     contents = run_list_contents(db)
     assert len(contents) == 1
     assert contents[0]["title"] == "人工智能入门"
+
+
+def test_mcp_list_accounts_honours_limit(tmp_path):
+    """MCP 侧原先把 limit 硬编码成 100 且不可调，与 API 同样的隐性截断（issues.md #8）。"""
+    from socialmedia_agent.services.mcp_tools import run_list_accounts
+
+    db, mem, reg = make_ctx(tmp_path)
+    with db.session() as session:
+        repo = AccountRepository(session)
+        for i in range(5):
+            repo.upsert(
+                Account(platform=Platform.WEIBO, platform_id=f"8{i:04d}", nickname=f"微博{i}")
+            )
+
+    assert len(run_list_accounts(db)) == 6
+    assert len(run_list_accounts(db, limit=2)) == 2

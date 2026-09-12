@@ -58,9 +58,9 @@ def create_mcp_server(
         return mcp_tools.run_optimize_title(registry, content_id, title, gateway)
 
     @mcp.tool()
-    def list_accounts(platform: str | None = None) -> list[dict]:
-        """列出账号（可按平台过滤）。"""
-        return mcp_tools.run_list_accounts(db, platform)
+    def list_accounts(platform: str | None = None, limit: int = 100) -> list[dict]:
+        """列出账号（可按平台过滤，limit 默认 100）。"""
+        return mcp_tools.run_list_accounts(db, platform, limit)
 
     @mcp.tool()
     def list_contents(platform: str | None = None, limit: int = 20) -> list[dict]:

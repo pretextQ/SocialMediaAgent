@@ -98,6 +98,7 @@
 - [x] ~~M6 httpx2~~ —— 已核实为 `openai 3.x` 的**硬传递依赖**，非缺陷，无需处理。
 - [x] CI（GitHub Actions + 本地 `run_ci.ps1`）
 - [x] 根 README
+- [x] `GET /accounts` 隐性 100 条截断（[`issues.md`](issues.md) #8 遗留）：端点显式暴露 `limit`（默认 100 / 最大 500），MCP `list_accounts` 同步；`/contents`、`/metrics` 本就有该参数
 - [ ] 死代码清理：`Comment`（domain + ORM，无 repo/API/ingest 使用）、`normalizers/ids.py::canonical_id`（与 `domain/identity` 重复）、`normalizers/rules.py`（no-op）、`CircuitBreaker.to_dict()`（无调用者）——**删除文件需先确认** |
 
 ### B. AI 真实性

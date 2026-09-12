@@ -108,3 +108,28 @@ def test_content_metric_linked_through_api(client):
     content_resp = c.get(f"/api/v1/contents/{content.id}").json()
     metric_resp = c.get("/api/v1/metrics", params={"content_id": content_resp["canonical_id"]}).json()
     assert metric_resp[0]["content_id"] == content_resp["canonical_id"]
+
+
+def test_list_accounts_limit_is_explicit_and_raisable(client):
+    """回归：GET /accounts 曾无 limit 参数，被 Repository 默认值静默截断到 100（issues.md #8）。
+
+    修复后要求：上限**显式化且可调**——默认 100，传入更大的 limit 能取回超过 100 条。
+    注意这不是「取消上限」：无界查询不可接受，上限本身要保留。
+    """
+    c, db = client
+    with db.session() as session:
+        repo = AccountRepository(session)
+        for i in range(120):
+            repo.upsert(
+                Account(platform=Platform.BILIBILI, platform_id=f"7{i:05d}", nickname=f"账号{i}")
+            )
+
+    assert len(c.get("/api/v1/accounts").json()) == 100  # 默认上限是显式的
+    assert len(c.get("/api/v1/accounts", params={"limit": 2}).json()) == 2
+    assert len(c.get("/api/v1/accounts", params={"limit": 500}).json()) == 120  # 可调高，不再静默截断
+
+
+def test_list_accounts_rejects_limit_out_of_range(client):
+    c, _ = client
+    assert c.get("/api/v1/accounts", params={"limit": 0}).status_code == 422
+    assert c.get("/api/v1/accounts", params={"limit": 501}).status_code == 422

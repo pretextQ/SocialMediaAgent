@@ -14,9 +14,15 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 @router.get("", response_model=list[Account])
 def list_accounts(
     platform: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
     session: Session = Depends(get_session),
 ) -> list[Account]:
-    models = AccountRepository(session).list(platform=platform)
+    """账号列表。limit 显式暴露（默认 100，最大 500），与 /contents、/metrics 一致。
+
+    此前该端点不接受 limit，导致结果被 Repository 默认值静默截断到 100 且无法调高
+    （见 docs/issues.md #8）。
+    """
+    models = AccountRepository(session).list(platform=platform, limit=limit)
     return [model.to_domain() for model in models]
 
 

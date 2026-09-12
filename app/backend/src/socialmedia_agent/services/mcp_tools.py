@@ -76,9 +76,11 @@ def run_optimize_title(
     }
 
 
-def run_list_accounts(database: Database, platform: str | None = None) -> list[dict]:
+def run_list_accounts(
+    database: Database, platform: str | None = None, limit: int = 100
+) -> list[dict]:
     with database.session() as session:
-        models = AccountRepository(session).list(platform=platform, limit=100)
+        models = AccountRepository(session).list(platform=platform, limit=limit)
     return [m.to_domain().model_dump() for m in models]
 
 
