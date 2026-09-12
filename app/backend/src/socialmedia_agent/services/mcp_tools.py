@@ -15,8 +15,7 @@ from socialmedia_agent.agents.topic_recommendation import nodes as topic_capabil
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.gateway import LLMGateway
-from socialmedia_agent.repositories.account_repo import AccountRepository
-from socialmedia_agent.repositories.content_repo import ContentRepository
+from socialmedia_agent.services import queries
 
 
 def run_account_strategy(
@@ -80,13 +79,13 @@ def run_list_accounts(
     database: Database, platform: str | None = None, limit: int = 100
 ) -> list[dict]:
     with database.session() as session:
-        models = AccountRepository(session).list(platform=platform, limit=limit)
-    return [m.to_domain().model_dump() for m in models]
+        accounts = queries.list_accounts(session, platform=platform, limit=limit)
+    return [account.model_dump() for account in accounts]
 
 
 def run_list_contents(
     database: Database, platform: str | None = None, limit: int = 20
 ) -> list[dict]:
     with database.session() as session:
-        models = ContentRepository(session).list(platform=platform, limit=limit)
-    return [m.to_domain().model_dump() for m in models]
+        contents = queries.list_contents(session, platform=platform, limit=limit)
+    return [content.model_dump() for content in contents]
