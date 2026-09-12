@@ -22,25 +22,49 @@ from socialmedia_agent.llm.gateway import LLMGateway
 
 MAX_TOPICS = 5
 
+# 账号级共享事实的取数上限：选题推荐与账号策略复用同一份，避免重复取数
+SHARED_RECENT_LIMIT = 20
 
-def gather(registry: ToolRegistry, account_id: str) -> dict:
-    """收集选题推荐所需 DB 事实（只经 Tool）。"""
+
+def gather_context(
+    registry: ToolRegistry,
+    account_id: str,
+    *,
+    recent_limit: int = SHARED_RECENT_LIMIT,
+) -> dict:
+    """账号级共享事实（只经 Tool）：profile / recent_contents / trends。
+
+    多个能力复用同一份取数结果，而不是各自重建上下文 —— 后者会让「组合出来的」
+    能力重复请求同一批数据（见 docs/issues.md）。
+    """
     profile = invoke_tool(registry, "get_account_profile", account_id=account_id) or {}
-    recent = invoke_tool(registry, "get_recent_contents", account_id=account_id, limit=20)
+    recent = invoke_tool(
+        registry, "get_recent_contents", account_id=account_id, limit=recent_limit
+    )
     platform = profile.get("platform")
     trends = (
         invoke_tool(registry, "get_trend_data", platform=platform, period=7)
         if platform
         else []
     )
-    knowledge = invoke_tool(registry, "search_operation_knowledge", query="选题方向", top_k=3)
     return {
         "account_id": account_id,
         "profile": profile,
         "recent_contents": recent,
         "trends": trends,
-        "knowledge": knowledge,
     }
+
+
+def gather_topic_knowledge(registry: ToolRegistry) -> list[dict]:
+    """选题候选所需的运营知识检索（RAG）。"""
+    return invoke_tool(registry, "search_operation_knowledge", query="选题方向", top_k=3)
+
+
+def gather(registry: ToolRegistry, account_id: str) -> dict:
+    """收集选题推荐所需 DB 事实（只经 Tool）。"""
+    facts = gather_context(registry, account_id)
+    facts["knowledge"] = gather_topic_knowledge(registry)
+    return facts
 
 
 def analyze(gateway: LLMGateway | None, facts: dict) -> TopicRecommendationOutput:

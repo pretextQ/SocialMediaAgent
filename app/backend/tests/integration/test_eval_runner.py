@@ -6,7 +6,8 @@
 - run_case(rules)：确定性路径（gateway=None）
 - run_suite：两种模式同批对照
 - render_markdown：报告包含关键指标
-- **指标确实能区分两条路径**：规则基线存在重复调用，脚本化的 llm 路径没有
+- **两条路径都不重复取数**（回归）：修复确定性 gather 的重复取数后，rules 与 llm 均为 0；
+  「指标本身能识别重复」由 unit/test_eval_tool_selection.py 覆盖
 """
 
 import json
@@ -198,8 +199,9 @@ def test_run_suite_compares_both_modes(tmp_path):
     assert by_mode["llm"].runs == 1
     assert by_mode["llm"].mean_exact_match_rate == 1.0
     assert by_mode["llm"].total_duplicate_calls == 0
-    # 规则基线会重复调用同一工具 —— 指标必须能把两条路径区分开
-    assert by_mode["rules"].total_duplicate_calls > 0
+    # 回归：确定性 gather 曾重复取 profile/recent/trends，修复后必须为 0
+    # （「指标本身能识别重复」由 unit/test_eval_tool_selection.py 覆盖，保护不丢）
+    assert by_mode["rules"].total_duplicate_calls == 0
     assert len(report.outcomes) == 2
 
 

@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import sessionmaker
 
 from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
+from socialmedia_agent.agents.account_strategy.nodes import gather
 from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput, DiagnosisOutput
 from socialmedia_agent.agents.tools.base import ToolContext
 from socialmedia_agent.agents.tools.catalog import build_core_tools
@@ -29,6 +30,7 @@ from socialmedia_agent.domain.content import Content
 from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
 from socialmedia_agent.domain.metric import Metric
 from socialmedia_agent.domain.topic import Topic
+from socialmedia_agent.evaluation.recording import RecordingRegistry
 from socialmedia_agent.llm.circuit_breaker import CircuitBreaker
 from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.llm.providers import LLMProvider
@@ -253,3 +255,36 @@ def test_statistics_injected_into_prompt(tmp_path):
     graph.invoke({"account_id": "bilibili:90001"})
     assert "1500" in provider.last_user_content
     assert "2" in provider.last_user_content
+
+
+def test_deterministic_gather_fetches_each_tool_exactly_once(tmp_path):
+    """确定性 gather 不得重复取数：profile / recent / trends 各只取一次。
+
+    回归测试：account_strategy.gather 曾复用 topic_recommendation.gather，
+    后者会重建自己的上下文，导致每例重复 3 次取数（见 docs/issues.md）。
+    """
+    ctx, reg, db = make_context(tmp_path)
+    recording = RecordingRegistry(reg)
+
+    facts = gather(recording, "bilibili:90001")
+
+    assert len(recording.calls) == len(set(recording.calls)), f"存在重复取数: {recording.calls}"
+    assert sorted(recording.calls) == [
+        "analyze_content_performance",
+        "get_account_profile",
+        "get_historical_strategy",
+        "get_recent_contents",
+        "get_trend_data",
+        "search_operation_knowledge",
+    ]
+    # facts 形状与语义必须保持不变
+    assert set(facts) == {
+        "account_id",
+        "profile",
+        "performance",
+        "recent_contents",
+        "history",
+        "trends",
+        "topic_candidates",
+    }
+    assert len(facts["recent_contents"]) == 2  # 账号只有 2 条内容

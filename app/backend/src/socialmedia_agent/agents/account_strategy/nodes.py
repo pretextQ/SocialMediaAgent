@@ -16,34 +16,38 @@ from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_mar
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.topic_recommendation.nodes import (
     build_topic_candidates,
-    gather as gather_topics,
+    gather_context,
+    gather_topic_knowledge,
 )
 from socialmedia_agent.llm.gateway import LLMGateway
 
 logger = logging.getLogger(__name__)
 
 
+# 策略侧原本只看最近 5 条内容；共享上下文按 SHARED_RECENT_LIMIT 取数后在此切片，
+# 保持注入 LLM 的 facts 语义不变（去重不应顺带改变事实的形状）
+RECENT_CONTENTS_FOR_STRATEGY = 5
+
+
 def gather(registry: ToolRegistry, account_id: str) -> dict:
-    """收集账号诊断与策略所需 DB 事实（只经 Tool，含选题候选）。"""
-    profile = invoke_tool(registry, "get_account_profile", account_id=account_id) or {}
+    """收集账号诊断与策略所需 DB 事实（只经 Tool，含选题候选）。
+
+    账号级事实（profile / recent / trends）通过 topic_recommendation.gather_context
+    **取一次**后复用；早期版本直接调用其 gather()，会让同一批数据被请求两遍。
+    """
+    shared = gather_context(registry, account_id)
     perf = invoke_tool(registry, "analyze_content_performance", account_id=account_id)
-    recent = invoke_tool(registry, "get_recent_contents", account_id=account_id, limit=5)
     history = invoke_tool(registry, "get_historical_strategy", account_id=account_id)
-    platform = profile.get("platform")
-    trends = (
-        invoke_tool(registry, "get_trend_data", platform=platform, period=7)
-        if platform
-        else []
+    candidates = build_topic_candidates(
+        {**shared, "knowledge": gather_topic_knowledge(registry)}
     )
-    topic_facts = gather_topics(registry, account_id)
-    candidates = build_topic_candidates(topic_facts)
     return {
         "account_id": account_id,
-        "profile": profile,
+        "profile": shared["profile"],
         "performance": perf,
-        "recent_contents": recent,
+        "recent_contents": shared["recent_contents"][:RECENT_CONTENTS_FOR_STRATEGY],
         "history": history,
-        "trends": trends,
+        "trends": shared["trends"],
         "topic_candidates": [c.model_dump() for c in candidates],
     }
 
