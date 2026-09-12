@@ -74,13 +74,3 @@ class CircuitBreaker:
 
     def record_success(self) -> None:
         self._on_success()
-
-    def to_dict(self) -> dict:
-        return {
-            "name": self.name,
-            "state": self.state,
-            "failures": self._failures,
-            "threshold": self.failure_threshold,
-            "recovery_timeout": self.recovery_timeout,
-            "last_failure_time": self._last_failure_time,
-        }
