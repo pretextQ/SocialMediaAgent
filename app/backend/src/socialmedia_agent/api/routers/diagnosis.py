@@ -8,10 +8,11 @@ POST /api/v1/accounts/{account_id}/diagnosis
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.account_strategy.schemas import DiagnosisOutput
+from socialmedia_agent.agents.common import AnalyzeSource
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.memory.summarizer import Summarizer
@@ -25,6 +26,9 @@ router = APIRouter(prefix="/accounts", tags=["diagnosis"])
 class DiagnosisResponse(BaseModel):
     diagnosis: DiagnosisOutput
     report: str
+    source: AnalyzeSource = Field(
+        description="本次结果的实际来源：llm = LLM 结构化输出；rules = 规则兜底"
+    )
 
 
 @router.post(
@@ -54,4 +58,5 @@ def diagnose_account(account_id: str, request: Request) -> DiagnosisResponse:
     return DiagnosisResponse(
         diagnosis=state["strategy"].to_diagnosis(),
         report=state["report"],
+        source=state.get("analyze_source", "rules"),
     )

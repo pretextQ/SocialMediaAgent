@@ -8,9 +8,10 @@ POST /api/v1/contents/{content_id}/analysis
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from socialmedia_agent.agents.content_analysis.graph import build_content_analysis_graph
+from socialmedia_agent.agents.common import AnalyzeSource
 from socialmedia_agent.agents.content_analysis.schemas import ContentAnalysisOutput
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
@@ -22,6 +23,9 @@ router = APIRouter(prefix="/contents", tags=["content_analysis"])
 class ContentAnalysisResponse(BaseModel):
     analysis: ContentAnalysisOutput
     report: str
+    source: AnalyzeSource = Field(
+        description="本次结果的实际来源：llm = LLM 结构化输出；rules = 规则兜底"
+    )
 
 
 @router.post(
@@ -46,4 +50,8 @@ def analyze_content(content_id: str, request: Request) -> ContentAnalysisRespons
         registry, gateway=getattr(request.app.state, "gateway", None)
     )
     state = graph.invoke({"content_id": content_id})
-    return ContentAnalysisResponse(analysis=state["analysis"], report=state["report"])
+    return ContentAnalysisResponse(
+        analysis=state["analysis"],
+        report=state["report"],
+        source=state.get("analyze_source", "rules"),
+    )

@@ -2,7 +2,7 @@
 
 多平台自媒体智能运营 Agent —— 输入平台账号 / 内容 / 指标数据，输出**账号诊断、内容分析、趋势分析、选题推荐、标题优化、运营策略**。
 
-> **状态**：后端可用（P0 ~ P5.5 已完成）；评测（M3 工具选择）已落地。前端尚未实施。
+> **状态**：后端可用（P0 ~ P5.5 已完成）；评测 **5/5 项**已落地；**前端已实施**（`app/frontend/`，9 个页面）。
 > 当前进度、未完成清单与续作步骤见 [`docs/status.md`](docs/status.md)。
 
 ---
@@ -221,6 +221,7 @@ SocialMediaAgent/
 │   │   │   ├── evaluation/           # 工具选择评测（指标 + runner + case 集）
 │   │   │   └── cli/                  # import_csv / ingest / seed_knowledge
 │   │   └── tests/                    # unit / integration / agent
+│   ├── frontend/                     # 前端（Vite + React 18 + TypeScript + Tailwind CSS）
 │   └── scripts/run_ci.ps1            # 本地 CI 门槛
 ├── docs/                             # 架构、ADR、API、计划、交接文档
 └── third_party/                      # 第三方源码（只读，不 import）
@@ -253,8 +254,54 @@ SocialMediaAgent/
 | POST | `/accounts/{account_id}/topic-recommendation` | 选题推荐（与已有内容去重） |
 | POST | `/titles/optimize` | 标题优化（body: `content_id` 或 `title`，固定返回 3 条） |
 
-所有 Agent 端点返回 `{ 结构化的结果, report }`，`report` 为确定性渲染的 Markdown 人类可读报告。
+### 系统状态与周报
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/system/status` | 只读状态聚合：LLM 是否配置、知识库 / Memory 规模、各表计数、库与周报目录 |
+| GET | `/reports` | 周报文件列表（扫描 `SMA_REPORT_DIR` 下的 `*.md`，按修改时间倒序） |
+| GET | `/reports/{name}` | 单篇周报 Markdown（仅限目录内普通文件名，防目录穿越，非法名 404） |
+
+所有 Agent 端点返回 `{ 结构化的结果, report, source }`：`report` 为确定性渲染的 Markdown 人类可读报告；
+`source` 为 `llm` / `rules`，表示该次结果**实际**由 LLM 还是规则兜底产生（不是「配置了 LLM」）。
 完整契约见 [`docs/api.md`](docs/api.md)。
+
+---
+
+## 前端
+
+`app/frontend/` —— **Vite + React 18 + TypeScript + Tailwind CSS + Recharts**（选型依据见 [`docs/plan-frontend.md`](docs/plan-frontend.md) 第二节）。把后端能力可视化，**打开即可看**，不再只有裸 JSON / Swagger。
+
+```powershell
+cd app/frontend
+npm install
+npm run dev        # http://127.0.0.1:5173（/api 代理到 127.0.0.1:8000）
+```
+
+| 页面 | 路径 | 调用的后端能力 |
+| --- | --- | --- |
+| 工作台 | `/` | 账号 / 内容 / 指标聚合，关键数字卡与快捷入口 |
+| 数据浏览 | `/data` | `GET /accounts` `/contents` `/metrics`（平台筛选） |
+| 账号诊断与策略 | `/strategy` | `POST /accounts/{id}/strategy`（健康度仪表盘 + 四象限 + 周计划/KPI/风险） |
+| 内容分析 | `/analysis[/:contentId]` | `POST /contents/{id}/analysis` |
+| 趋势分析 | `/trends` | `POST /trends/analysis`（话题条 + 趋势分 + 洞察） |
+| 选题推荐 | `/topics` | `POST /accounts/{id}/topic-recommendation` |
+| 标题优化 | `/titles` | `POST /titles/optimize`（两种输入模式 + 一键复制） |
+| 运营周报 | `/reports` | `GET /reports`（后端配套新增） |
+| 系统状态 | `/settings` | `GET /system/status`（后端配套新增） |
+
+设计要点：
+
+- **只读 + Agent 操作为主**：后端无写入端点，前端不做写表单。
+- **来源透明**：每个 Agent 结果标注 `LLM 生成` / `规则兜底`（消费响应里的 `source` 字段），拿不到就显示「来源未知」而不是默认成 LLM。
+- **空态可解释**：每个列表页都有空态与下一步指引，例如趋势页会说明「真实数据未含 Topic」。
+
+```powershell
+npm run build      # tsc --noEmit + vite build
+npm test           # Vitest 冒烟测试：11 项路由 + 6 项组件 = 17 项
+```
+
+> 对 demo 库演示（趋势页有数据）：设 `VITE_API_TARGET=http://127.0.0.1:8001` 后再 `npm run dev`，详见 [`app/frontend/README.md`](app/frontend/README.md)。
 
 ---
 
@@ -312,9 +359,9 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 - **评测覆盖 5/5**：工具选择质量、数据准确性（数字是否可溯源）、RAG 检索质量（确定性、无需密钥）、Prompt 回归（golden 快照）、输出质量（LLM 评委，**分数不是 ground truth**）。
 - **RAG 默认非语义**：未配置 `SMA_EMBEDDING_MODEL` 时使用 `HashEmbedder`（确定性字符哈希，不具备语义相似度）。
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
-- **无数据库迁移**：使用 `Base.metadata.create_all`，未接 Alembic；表结构变更需自行处理。
-- **前端未实施**：`docs/plan-frontend.md` 已规划；P6 评估套件其余 4 项（数据准确性 / RAG 检索质量 / 输出质量 / Prompt 回归）尚未开发。
-- **周报接口未暴露**：周报由 APScheduler 落盘为 Markdown，尚无 HTTP 读取接口。
+- **数据库迁移已接 Alembic**：`migrations/` 提供基线 + 增量迁移，生产入口（API 启动 / `import_csv` / `ingest`）自动 `upgrade head`，既有库自动收养；测试与临时库仍用 `Base.metadata.create_all`，两者一致性由 `tests/unit/test_migrations.py` 守护。
+- **前端已实施**：`app/frontend/` 覆盖计划中的全部 9 个页面（对应 `plan-frontend.md` 的 F1~F4）；`npm run build` 与 `npm test`（17 项）均通过。前端未接入 CI 门槛，需手动执行。
+- **周报写入与调度未接线**：`GET /reports` 已暴露，读的是 `SMA_REPORT_DIR`；周报生成器省略 `report_dir` 时也回落到同一目录（写读同源）。但 `services/scheduler.py` 的 APScheduler 调度器**尚未挂到 API 启动流程**，周报目前需手动触发 `generate_all_weekly_reports` 或自行接入调度。
 
 > 已完成能力的真实性：LLM 链路已于 2026-09-12 用 DeepSeek `deepseek-flash` 真实调用验证（`/strategy`、`/titles/optimize`），
 > 输出确实引用了数据库中的指标与话题事实。

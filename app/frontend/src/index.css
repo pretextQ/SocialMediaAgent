@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Microsoft YaHei',
+    'PingFang SC',
+    sans-serif;
+  background-color: #f5f6f8;
+  color: #1f2937;
+}
+
+/* 报告 markdown 的紧凑排版（react-markdown 输出的裸标签） */
+.report-markdown {
+  line-height: 1.75;
+  font-size: 0.925rem;
+}
+.report-markdown h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+.report-markdown h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.report-markdown h3 {
+  font-size: 0.975rem;
+  font-weight: 600;
+  margin: 1rem 0 0.375rem;
+}
+.report-markdown p {
+  margin: 0.5rem 0;
+}
+.report-markdown ul,
+.report-markdown ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.report-markdown ul {
+  list-style: disc;
+}
+.report-markdown ol {
+  list-style: decimal;
+}
+.report-markdown li {
+  margin: 0.2rem 0;
+}
+.report-markdown strong {
+  font-weight: 600;
+  color: #111827;
+}
+.report-markdown code {
+  background: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}

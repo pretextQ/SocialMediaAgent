@@ -9,9 +9,9 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **317 passed**（含 CI 门槛）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **412 passed**（含 CI 门槛）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
-**Evaluation 已完成 M3（工具选择评测 + 多轮方差）**；前端尚未实施。
+**Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
 ## 2. 基线
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 317 passed（`tmp_path` 需放宽沙箱权限，见 [`issues.md`](issues.md) 附录） |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 412 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions）+ `app/scripts/run_ci.ps1`（本地门槛） |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -67,7 +67,7 @@
 
 ### P5 — 调度与周报 / API 文档 / MCP Server：达成；自有账号接入：**未达成**
 
-### P6 — 目标 5 项评估，已实现 **1 项**（工具选择质量，M3）；其余 4 项未开始
+### P6 — 目标 5 项评估**已全部实现**（工具选择 / 数据准确性 / RAG 检索质量 / 输出质量 / Prompt 回归）；**未接入 CI 强制门槛**
 
 ### P7 — 合规声明已完成；部署 / 架构图 / 演示脚本**未开始**
 
@@ -252,7 +252,7 @@
 - [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
 
-### H. 前端（规划就绪，未实施）
+### H. 前端（已实施）
 
 - [ ] 见 [`plan-frontend.md`](plan-frontend.md)；建议先补后端 3 个小改动（`GET /reports`、`GET /system/status`、响应加 `source: llm|rules`）
 

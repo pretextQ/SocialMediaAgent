@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from socialmedia_agent.database.base import Base
@@ -25,6 +25,14 @@ class BaseRepository:
             if value is not None:
                 stmt = stmt.where(getattr(self.model, key) == value)
         return list(self.session.scalars(stmt))
+
+    def count(self) -> int:
+        """当前表行数（只读）。
+
+        为「状态聚合」这类统计提供统一入口，避免调用方各自手写 SQL
+        （AGENTS.md：数据访问统一走 Repository）。
+        """
+        return self.session.scalar(select(func.count()).select_from(self.model)) or 0
 
     def insert(self, model_obj: Base) -> Base:
         self.session.add(model_obj)

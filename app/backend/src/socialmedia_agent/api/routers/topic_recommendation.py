@@ -7,8 +7,9 @@ POST /api/v1/accounts/{account_id}/topic-recommendation
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from socialmedia_agent.agents.common import AnalyzeSource
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.agents.topic_recommendation import nodes as topic_capability
 from socialmedia_agent.agents.topic_recommendation.schemas import TopicRecommendationOutput
@@ -21,6 +22,9 @@ router = APIRouter(prefix="/accounts", tags=["topic_recommendation"])
 class TopicRecommendationResponse(BaseModel):
     recommendation: TopicRecommendationOutput
     report: str
+    source: AnalyzeSource = Field(
+        description="本次结果的实际来源：llm = LLM 结构化输出；rules = 规则兜底"
+    )
 
 
 @router.post(
@@ -41,8 +45,11 @@ def recommend_topics(account_id: str, request: Request) -> TopicRecommendationRe
         database, retriever=getattr(request.app.state, "retriever", None)
     )
     facts = topic_capability.gather(registry, account_id)
-    recommendation = topic_capability.analyze(getattr(request.app.state, "gateway", None), facts)
+    recommendation, source = topic_capability.analyze_with_source(
+        getattr(request.app.state, "gateway", None), facts
+    )
     return TopicRecommendationResponse(
         recommendation=recommendation,
         report=topic_capability.render_report(recommendation, facts),
+        source=source,
     )

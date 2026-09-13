@@ -22,3 +22,19 @@ def test_scheduler_registers_weekly_job(tmp_path):
         assert "mon" in str(job.trigger)
     finally:
         scheduler.shutdown(wait=False)
+
+
+def test_scheduler_accepts_default_report_dir(tmp_path):
+    """report_dir 可省略：交由周报生成器回落到 Settings.report_dir。"""
+    from socialmedia_agent.services.scheduler import create_weekly_report_scheduler
+
+    db = Database(url=f"sqlite:///{tmp_path / 's2.db'}")
+    mem = build_memory_store(url=f"sqlite:///{tmp_path / 'smem2.db'}")
+    scheduler = create_weekly_report_scheduler(db, mem)
+    scheduler.start()
+    try:
+        jobs = scheduler.get_jobs()
+        assert len(jobs) == 1
+        assert jobs[0].kwargs["report_dir"] is None
+    finally:
+        scheduler.shutdown(wait=False)

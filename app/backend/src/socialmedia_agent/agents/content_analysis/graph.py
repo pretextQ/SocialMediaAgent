@@ -1,6 +1,7 @@
 """Content Analysis 图（P4-1）。
 
-gather → analyze → report → END；state 携带 content_id / facts / analysis / report。
+gather → analyze → report → END；
+state 携带 content_id / facts / analysis / report / analyze_source（分析阶段来源 llm|rules）。
 """
 
 from __future__ import annotations
@@ -9,7 +10,11 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from socialmedia_agent.agents.content_analysis.nodes import analyze, gather, render_report
+from socialmedia_agent.agents.content_analysis.nodes import (
+    analyze_with_source,
+    gather,
+    render_report,
+)
 from socialmedia_agent.agents.content_analysis.schemas import ContentAnalysisOutput
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.llm.gateway import LLMGateway
@@ -20,6 +25,7 @@ class ContentAnalysisState(TypedDict, total=False):
     facts: dict
     analysis: ContentAnalysisOutput
     report: str
+    analyze_source: str
 
 
 def build_content_analysis_graph(registry: ToolRegistry, gateway: LLMGateway | None = None):
@@ -27,7 +33,8 @@ def build_content_analysis_graph(registry: ToolRegistry, gateway: LLMGateway | N
         return {"facts": gather(registry, state["content_id"])}
 
     def node_analyze(state: ContentAnalysisState) -> dict[str, Any]:
-        return {"analysis": analyze(gateway, state["facts"])}
+        analysis, source = analyze_with_source(gateway, state["facts"])
+        return {"analysis": analysis, "analyze_source": source}
 
     def node_report(state: ContentAnalysisState) -> dict[str, Any]:
         return {"report": render_report(state["analysis"], state["facts"])}

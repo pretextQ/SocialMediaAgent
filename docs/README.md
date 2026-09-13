@@ -18,7 +18,7 @@
 | 8 | [`adr/`](adr/) | 为什么这么设计：决策记录与第三方模块三线表 |
 | 9 | [`source-analysis.md`](source-analysis.md) | 第三方到底有什么：MatrixFlow / MediaCrawler 已核验源码事实 |
 | 10 | [`compliance.md`](compliance.md) | 能不能用：License、平台 ToS、个人信息边界 |
-| 11 | [`plan-frontend.md`](plan-frontend.md) | 前端规划（尚未实施） |
+| 11 | [`plan-frontend.md`](plan-frontend.md) | 前端设计依据与验收清单（**已实施**） |
 
 ---
 
@@ -34,7 +34,7 @@
 | `adr/*.md` | 单项架构决策的完整记录 | 新决策时（复制 `adr/template.md`） |
 | `source-analysis.md` | 第三方源码的已核验事实 | 重新勘探第三方源码时 |
 | `compliance.md` | License / ToS / 个人信息边界 | 数据源或使用方式变化时 |
-| `plan-frontend.md` | 未实施的前端规划 | 前端动工时 |
+| `plan-frontend.md` | 前端设计依据与验收清单 | 前端范围变化时 |
 
 ---
 
@@ -62,7 +62,7 @@ docs/
 ├── issues.md             # 问题、根因与教训（面试讲解用）
 ├── compliance.md         # License / ToS / 个人信息边界
 ├── source-analysis.md    # 第三方源码分析（已核验事实）
-├── plan-frontend.md      # 前端规划（未实施）
+├── plan-frontend.md      # 前端设计依据与验收清单（已实施）
 ├── eval/                 # 评测证据：真实跑出的报告原文（可复核数字 + 重跑命令）
 └── adr/
     ├── README.md         # ADR 索引 + 第三方模块三线表

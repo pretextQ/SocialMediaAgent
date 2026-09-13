@@ -14,6 +14,7 @@ from pathlib import Path
 
 from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.tools.catalog import build_registry
+from socialmedia_agent.config import get_settings
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
@@ -98,12 +99,17 @@ def render_weekly_report(summary: dict) -> str:
 def generate_all_weekly_reports(
     database: Database,
     memory_store: SQLAlchemyMemoryStore | None,
-    report_dir: str,
+    report_dir: str | None = None,
     days: int = 7,
     gateway: LLMGateway | None = None,
 ) -> list[str]:
-    """为全部账号生成周报并写入 report_dir，返回写入文件路径列表。"""
-    Path(report_dir).mkdir(parents=True, exist_ok=True)
+    """为全部账号生成周报并写入报告目录，返回写入文件路径列表。
+
+    report_dir 为 None 时回落到 Settings.report_dir（SMA_REPORT_DIR）——
+    必须与 GET /api/v1/reports 读取的目录一致，否则周报写了却读不到。
+    """
+    target_dir = Path(report_dir or get_settings().report_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
     with database.session() as session:
         accounts = AccountRepository(session).list(limit=1000)
         account_ids = [a.canonical_id for a in accounts]
@@ -112,7 +118,7 @@ def generate_all_weekly_reports(
     for account_id in account_ids:
         summary = build_weekly_report(database, memory_store, account_id, days, gateway)
         filename = f"weekly_{account_id.replace(':', '_')}_{summary['week_end']}.md"
-        path = Path(report_dir) / filename
+        path = target_dir / filename
         path.write_text(render_weekly_report(summary), encoding="utf-8")
         written.append(str(path))
     return written

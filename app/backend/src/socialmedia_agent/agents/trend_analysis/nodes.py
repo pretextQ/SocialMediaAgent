@@ -8,7 +8,12 @@ report：由结构化结果规则渲染人类可读 markdown
 
 from __future__ import annotations
 
-from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
+from socialmedia_agent.agents.common import (
+    AnalyzeSource,
+    invoke_tool,
+    llm_analyze_with_source,
+    render_markdown,
+)
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.trend_analysis.prompts import SYSTEM_PROMPT
 from socialmedia_agent.agents.trend_analysis.schemas import TrendAnalysisOutput, TrendTopic
@@ -21,12 +26,20 @@ def gather(registry: ToolRegistry, platform: str, period: int) -> dict:
     return {"platform": platform, "period": period, "trends": trends}
 
 
-def analyze(gateway: LLMGateway | None, facts: dict) -> TrendAnalysisOutput:
-    """LLM 结构化输出；失败或未配置 gateway 时规则兜底；topics 回填 DB 事实。"""
-    out = llm_analyze(
+def analyze_with_source(
+    gateway: LLMGateway | None, facts: dict
+) -> tuple[TrendAnalysisOutput, AnalyzeSource]:
+    """LLM 结构化输出 + 实际来源；topics 一律回填 DB 事实。"""
+    out, source = llm_analyze_with_source(
         gateway, SYSTEM_PROMPT, facts, TrendAnalysisOutput, fallback=_rule_fallback
     )
     out.topics = _db_topics(facts)
+    return out, source
+
+
+def analyze(gateway: LLMGateway | None, facts: dict) -> TrendAnalysisOutput:
+    """LLM 结构化输出；失败或未配置 gateway 时规则兜底；topics 回填 DB 事实。"""
+    out, _source = analyze_with_source(gateway, facts)
     return out
 
 

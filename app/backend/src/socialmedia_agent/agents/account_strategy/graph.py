@@ -2,6 +2,10 @@
 
 gather → analyze → persist → report → END；persist 将策略写入 Memory（读-写闭环）。
 state 携带 account_id / facts / strategy / memory_saved / report。
+
+两个来源字段并存且语义不同：
+- `gather_source`：**取数阶段**由谁决策（llm 自主选工具 / rules 确定性 gather）；
+- `analyze_source`：**分析阶段**结果由谁产出（llm 结构化输出 / rules 规则兜底）。
 """
 
 from __future__ import annotations
@@ -11,7 +15,12 @@ from typing import Any, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from socialmedia_agent.agents.account_strategy.agentic import gather_agentic
-from socialmedia_agent.agents.account_strategy.nodes import analyze, gather, persist, render_report
+from socialmedia_agent.agents.account_strategy.nodes import (
+    analyze_with_source,
+    gather,
+    persist,
+    render_report,
+)
 from socialmedia_agent.agents.account_strategy.schemas import AccountStrategyOutput
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.llm.gateway import LLMGateway
@@ -25,6 +34,7 @@ class AccountStrategyState(TypedDict, total=False):
     report: str
     tool_trace: list[str]
     gather_source: str
+    analyze_source: str
 
 
 def build_account_strategy_graph(
@@ -49,7 +59,8 @@ def build_account_strategy_graph(
         }
 
     def node_analyze(state: AccountStrategyState) -> dict[str, Any]:
-        return {"strategy": analyze(gateway, state["facts"])}
+        strategy, source = analyze_with_source(gateway, state["facts"])
+        return {"strategy": strategy, "analyze_source": source}
 
     def node_persist(state: AccountStrategyState) -> dict[str, Any]:
         return {"memory_saved": persist(registry, state["strategy"])}

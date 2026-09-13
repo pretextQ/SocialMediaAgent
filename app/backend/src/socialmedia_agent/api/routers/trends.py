@@ -10,6 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
+from socialmedia_agent.agents.common import AnalyzeSource
 from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_graph
 from socialmedia_agent.agents.trend_analysis.schemas import TrendAnalysisOutput
@@ -26,6 +27,9 @@ class TrendRequest(BaseModel):
 class TrendAnalysisResponse(BaseModel):
     analysis: TrendAnalysisOutput
     report: str
+    source: AnalyzeSource = Field(
+        description="本次结果的实际来源：llm = LLM 结构化输出；rules = 规则兜底"
+    )
 
 
 @router.post(
@@ -45,4 +49,8 @@ def analyze_trends(req: TrendRequest, request: Request) -> TrendAnalysisResponse
         registry, gateway=getattr(request.app.state, "gateway", None)
     )
     state = graph.invoke({"platform": req.platform, "period": req.period})
-    return TrendAnalysisResponse(analysis=state["analysis"], report=state["report"])
+    return TrendAnalysisResponse(
+        analysis=state["analysis"],
+        report=state["report"],
+        source=state.get("analyze_source", "rules"),
+    )

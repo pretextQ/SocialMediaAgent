@@ -9,7 +9,12 @@ render_report：由结构化结果规则渲染人类可读 markdown
 
 from __future__ import annotations
 
-from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
+from socialmedia_agent.agents.common import (
+    AnalyzeSource,
+    invoke_tool,
+    llm_analyze_with_source,
+    render_markdown,
+)
 from socialmedia_agent.agents.title_optimization.prompts import SYSTEM_PROMPT
 from socialmedia_agent.agents.title_optimization.schemas import TitleOptimizationOutput
 from socialmedia_agent.agents.tools.registry import ToolRegistry
@@ -37,11 +42,19 @@ def gather(
     }
 
 
-def analyze(gateway: LLMGateway | None, facts: dict) -> TitleOptimizationOutput:
-    """LLM 结构化输出（固定 3 条）；失败或未配置 gateway 时规则兜底。"""
-    return llm_analyze(
+def analyze_with_source(
+    gateway: LLMGateway | None, facts: dict
+) -> tuple[TitleOptimizationOutput, AnalyzeSource]:
+    """LLM 结构化输出（固定 3 条）+ 实际来源（llm / rules）。"""
+    return llm_analyze_with_source(
         gateway, SYSTEM_PROMPT, facts, TitleOptimizationOutput, fallback=_rule_fallback
     )
+
+
+def analyze(gateway: LLMGateway | None, facts: dict) -> TitleOptimizationOutput:
+    """LLM 结构化输出（固定 3 条）；失败或未配置 gateway 时规则兜底（签名不变）。"""
+    out, _source = analyze_with_source(gateway, facts)
+    return out
 
 
 def _rule_templates(original: str) -> list[str]:

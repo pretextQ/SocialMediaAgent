@@ -1,6 +1,6 @@
 # SocialMediaAgent 前端规划（plan-frontend）
 
-> 状态：**规划中（未实施）**——本文档为设计稿，动工前需确认
+> 状态：**已实施**（`app/frontend/`）。本文档保留为设计依据与验收清单；实现与偏差记录见该目录的 README。
 > 参考：`docs/api.md`（现有接口）、`AGENTS.md`（工程约束）、`docs/architecture.md`
 > 定位对齐架构文档："可选轻量前端"（P5 遗留项），目标是**可演示、轻量、真实用**
 

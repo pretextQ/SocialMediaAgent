@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # 嵌入模型；未配置或未设 LLM_API_KEY 时回退 HashEmbedder（确定性，无外部依赖）
     embedding_model: str | None = Field(default=None, alias="SMA_EMBEDDING_MODEL")
 
+    # 周报落盘目录（P5-2 周报写入；GET /reports 与 GET /system/status 读取）
+    report_dir: str = Field(
+        default=str(BACKEND_DIR / "data" / "reports"),
+        alias="SMA_REPORT_DIR",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

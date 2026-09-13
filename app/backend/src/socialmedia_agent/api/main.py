@@ -25,7 +25,9 @@ from .routers import (
     contents,
     diagnosis,
     metrics,
+    reports,
     strategy_advisor,
+    system_status,
     title_optimization,
     topic_recommendation,
     trends,
@@ -66,6 +68,8 @@ def create_app(
     app.include_router(topic_recommendation.router, prefix="/api/v1")
     app.include_router(title_optimization.router, prefix="/api/v1")
     app.include_router(strategy_advisor.router, prefix="/api/v1")
+    app.include_router(reports.router, prefix="/api/v1")
+    app.include_router(system_status.router, prefix="/api/v1")
     return app
 
 

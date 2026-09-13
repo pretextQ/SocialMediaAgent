@@ -11,7 +11,12 @@ render_report：由结构化结果规则渲染人类可读 markdown
 
 from __future__ import annotations
 
-from socialmedia_agent.agents.common import invoke_tool, llm_analyze, render_markdown
+from socialmedia_agent.agents.common import (
+    AnalyzeSource,
+    invoke_tool,
+    llm_analyze_with_source,
+    render_markdown,
+)
 from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.agents.topic_recommendation.prompts import SYSTEM_PROMPT
 from socialmedia_agent.agents.topic_recommendation.schemas import (
@@ -67,12 +72,20 @@ def gather(registry: ToolRegistry, account_id: str) -> dict:
     return facts
 
 
-def analyze(gateway: LLMGateway | None, facts: dict) -> TopicRecommendationOutput:
-    """LLM 结构化输出；失败或未配置 gateway 时规则兜底；最终硬去重。"""
-    out = llm_analyze(
+def analyze_with_source(
+    gateway: LLMGateway | None, facts: dict
+) -> tuple[TopicRecommendationOutput, AnalyzeSource]:
+    """LLM 结构化输出 + 实际来源；最终硬去重。"""
+    out, source = llm_analyze_with_source(
         gateway, SYSTEM_PROMPT, facts, TopicRecommendationOutput, fallback=_rule_fallback
     )
     out.topics = _finalize_topics(out.topics, _existing_titles(facts))
+    return out, source
+
+
+def analyze(gateway: LLMGateway | None, facts: dict) -> TopicRecommendationOutput:
+    """LLM 结构化输出；失败或未配置 gateway 时规则兜底；最终硬去重（签名不变）。"""
+    out, _source = analyze_with_source(gateway, facts)
     return out
 
 

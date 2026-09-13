@@ -8,8 +8,9 @@ body: { content_id?, title? }（至少提供其一）
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
+from socialmedia_agent.agents.common import AnalyzeSource
 from socialmedia_agent.agents.title_optimization import nodes as title_capability
 from socialmedia_agent.agents.title_optimization.schemas import TitleOptimizationOutput
 from socialmedia_agent.agents.tools.catalog import build_registry
@@ -33,6 +34,9 @@ class TitleOptimizeRequest(BaseModel):
 class TitleOptimizationResponse(BaseModel):
     optimization: TitleOptimizationOutput
     report: str
+    source: AnalyzeSource = Field(
+        description="本次结果的实际来源：llm = LLM 结构化输出；rules = 规则兜底"
+    )
 
 
 @router.post(
@@ -54,8 +58,11 @@ def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimiza
         database, retriever=getattr(request.app.state, "retriever", None)
     )
     facts = title_capability.gather(registry, content_id=req.content_id, title=req.title)
-    optimization = title_capability.analyze(getattr(request.app.state, "gateway", None), facts)
+    optimization, source = title_capability.analyze_with_source(
+        getattr(request.app.state, "gateway", None), facts
+    )
     return TitleOptimizationResponse(
         optimization=optimization,
         report=title_capability.render_report(optimization, facts),
+        source=source,
     )

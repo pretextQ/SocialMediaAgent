@@ -108,3 +108,24 @@ def test_generate_all_weekly_reports_writes_files(tmp_path):
     written = generate_all_weekly_reports(db, mem, str(report_dir))
     assert len(written) == 2
     assert all(Path(p).exists() for p in written)
+
+
+def test_generate_all_weekly_reports_defaults_to_settings_dir(tmp_path, monkeypatch):
+    """report_dir 省略时回落到 Settings.report_dir。
+
+    读侧 GET /api/v1/reports 读的就是这个目录；两边不一致会让周报「写了却读不到」。
+    """
+    from types import SimpleNamespace
+
+    from socialmedia_agent.services import weekly_report as wr
+
+    db = seed_db(tmp_path)
+    mem = make_memory(tmp_path)
+    target = tmp_path / "reports_from_settings"
+    monkeypatch.setattr(wr, "get_settings", lambda: SimpleNamespace(report_dir=str(target)))
+
+    written = wr.generate_all_weekly_reports(db, mem)
+
+    assert len(written) == 2
+    assert all(Path(p).exists() for p in written)
+    assert all(Path(p).parent == target for p in written)
