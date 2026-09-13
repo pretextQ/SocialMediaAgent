@@ -141,3 +141,53 @@ def test_system_status_missing_report_dir_is_zero(tmp_path):
     mem.dispose()
 
     assert body["report_count"] == 0
+
+
+def test_system_status_exposes_circuit_state_and_role_models(tmp_path):
+    """熔断状态与角色模型覆盖必须出现在状态里（可观测性）。
+
+    「为什么突然变快、source 变成 rules」这类问题，只能靠这个字段回答。
+    """
+    from socialmedia_agent.llm.circuit_breaker import CircuitBreaker
+    from socialmedia_agent.llm.gateway import LLMGateway
+    from socialmedia_agent.llm.providers import LLMProvider
+
+    class _Provider(LLMProvider):
+        def complete(self, messages: list[dict], response_format: str = "text") -> str:
+            return "{}"
+
+    breaker = CircuitBreaker(name="llm", failure_threshold=3, recovery_timeout=60)
+    breaker.record_failure()
+    gateway = LLMGateway(provider=_Provider(), breaker=breaker)
+
+    db = Database(url=f"sqlite:///{tmp_path / 'circuit.db'}")
+    db.create_all()
+    mem = build_memory_store(url=f"sqlite:///{tmp_path / 'circuit_mem.db'}")
+    app = create_app(database=db, memory_store=mem, gateway=gateway)
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        _env_file=None,
+        llm_api_key="sk-test",
+        llm_model="base-model",
+        llm_model_account_strategy="strong-model",
+    )
+    with TestClient(app) as client:
+        body = client.get("/api/v1/system/status").json()
+    db.engine.dispose()
+    mem.dispose()
+
+    assert body["llm_circuit_state"] == "closed"  # 1 次失败 < 阈值 3，仍闭合
+    assert body["llm_circuit_failures"] == 1
+    assert body["llm_model_overrides"] == {"account_strategy": "strong-model"}
+
+
+def test_system_status_circuit_fields_are_none_without_gateway(tmp_path):
+    """未注入 gateway 时熔断字段为 None —— 不假装有状态可读。"""
+    app, db, mem = _make(tmp_path, llm_key=None)
+    with TestClient(app) as client:
+        body = client.get("/api/v1/system/status").json()
+    db.engine.dispose()
+    mem.dispose()
+
+    assert body["llm_circuit_state"] is None
+    assert body["llm_circuit_failures"] is None
+    assert body["llm_model_overrides"] == {}

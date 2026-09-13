@@ -1,6 +1,13 @@
 import { api } from '../api/client'
+import { ROLE_LABELS } from '../api/types'
 import { Card, ErrorState, Loading, PageHeader, StatCard } from '../components'
 import { useAsync } from '../hooks/useAsync'
+
+const CIRCUIT_LABELS: Record<string, string> = {
+  closed: '正常（closed）',
+  half_open: '半开探测中（half_open）',
+  open: '已熔断（open）',
+}
 
 export function SettingsPage() {
   const { data, error, loading, run } = useAsync(() => api.getSystemStatus(), [])
@@ -44,7 +51,7 @@ export function SettingsPage() {
             <StatCard label="指标" value={data.metric_count} />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3">
             <Card title="能力规模">
               <dl className="divide-y divide-gray-100 text-sm">
                 <Row label="趋势话题" value={data.topic_count + ' 个'} />
@@ -59,9 +66,45 @@ export function SettingsPage() {
               )}
             </Card>
 
+            <Card title="模型与熔断">
+              <dl className="divide-y divide-gray-100 text-sm">
+                <Row label="默认模型" value={data.llm_model} />
+                <Row
+                  label="熔断状态"
+                  value={
+                    data.llm_circuit_state === null
+                      ? '—（未注入 LLM）'
+                      : (CIRCUIT_LABELS[data.llm_circuit_state] ?? data.llm_circuit_state) +
+                        (data.llm_circuit_failures
+                          ? '（连续失败 ' + data.llm_circuit_failures + '）'
+                          : '')
+                  }
+                />
+              </dl>
+              <p className="mt-3 text-xs font-semibold text-gray-500">角色模型覆盖</p>
+              {Object.keys(data.llm_model_overrides).length === 0 ? (
+                <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                  所有 Agent 角色共用默认模型。可用 <code>LLM_MODEL_&lt;角色&gt;</code>（如
+                  <code>LLM_MODEL_TITLE_OPTIMIZATION</code>）单独覆盖。
+                </p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-xs">
+                  {Object.entries(data.llm_model_overrides).map(([role, model]) => (
+                    <li key={role} className="flex justify-between gap-2">
+                      <span className="text-gray-600">{ROLE_LABELS[role] ?? role}</span>
+                      <span className="font-mono text-gray-800">{model}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+                熔断状态存在进程内存，只反映本实例，不要当集群状态读。
+              </p>
+            </Card>
+
             <Card title="端点与路径">
               <dl className="divide-y divide-gray-100 text-sm">
-                <Row label="LLM 模型" value={data.llm_model} />
+                <Row label="LLM Base URL" value={data.llm_base_url} mono />
                 <Row label="LLM Base URL" value={data.llm_base_url} mono />
                 <Row label="核心库" value={data.database_url} mono />
                 <Row label="Memory 库" value={data.memory_database_url} mono />

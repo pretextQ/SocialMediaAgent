@@ -18,7 +18,7 @@ from socialmedia_agent.database.session import Database
 from socialmedia_agent.memory.summarizer import Summarizer
 from socialmedia_agent.repositories.account_repo import AccountRepository
 
-from ..deps import get_memory_store
+from ..deps import get_gateway, get_memory_store
 
 router = APIRouter(prefix="/accounts", tags=["strategy_advisor"])
 
@@ -53,7 +53,7 @@ def advise_strategy(account_id: str, request: Request) -> StrategyAdvisorRespons
         summarizer=Summarizer(),
     )
     graph = build_account_strategy_graph(
-        registry, gateway=getattr(request.app.state, "gateway", None)
+        registry, gateway=get_gateway(request, "account_strategy")
     )
     state = graph.invoke({"account_id": account_id})
     return StrategyAdvisorResponse(

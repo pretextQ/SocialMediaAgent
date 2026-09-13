@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
+
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.account import Account
 from socialmedia_agent.domain.content import Content
@@ -129,3 +131,79 @@ def test_generate_all_weekly_reports_defaults_to_settings_dir(tmp_path, monkeypa
     assert len(written) == 2
     assert all(Path(p).exists() for p in written)
     assert all(Path(p).parent == target for p in written)
+
+
+# ---- 环比（对比上一个等长周期） ----
+
+
+def test_build_weekly_report_computes_period_over_period(tmp_path):
+    """本期 2 条 / 播放 200，上期 1 条 / 播放 50 -> 内容 +100%、播放 +300%。"""
+    from socialmedia_agent.services.weekly_report import build_weekly_report
+
+    db = Database(url=f"sqlite:///{tmp_path / 'pop.db'}")
+    db.create_all()
+    now = datetime.now(timezone.utc)
+
+    def add(platform_content_id: str, days_ago: int, views: str) -> None:
+        with db.session() as session:
+            c = ContentRepository(session).upsert(
+                Content(
+                    platform=Platform.BILIBILI,
+                    platform_content_id=platform_content_id,
+                    account_id="bilibili:95001",
+                    title=platform_content_id,
+                    content_type=ContentType.VIDEO,
+                    publish_time=now - timedelta(days=days_ago),
+                )
+            )
+            MetricRepository(session).upsert(
+                Metric(
+                    content_id=c.canonical_id,
+                    account_id="bilibili:95001",
+                    platform=Platform.BILIBILI,
+                    metric_type=MetricType.VIEWS,
+                    value=views,
+                    captured_at=now,
+                    source=MetricSource.MEDIACRAWLER,
+                )
+            )
+
+    with db.session() as session:
+        AccountRepository(session).upsert(
+            Account(platform=Platform.BILIBILI, platform_id="95001", nickname="环比UP")
+        )
+    add("cur-1", 1, "100")  # 本期
+    add("cur-2", 3, "100")  # 本期
+    add("prev-1", 10, "50")  # 上一周期（7~14 天前）
+
+    summary = build_weekly_report(db, make_memory(tmp_path), "bilibili:95001")
+
+    assert summary["content_count"] == 2
+    assert summary["previous_content_count"] == 1
+    assert Decimal(summary["total_views"]) == Decimal("200")
+    assert Decimal(summary["previous_total_views"]) == Decimal("50")
+    assert summary["content_count_change_pct"] == pytest.approx(100.0)
+    assert summary["total_views_change_pct"] == pytest.approx(300.0)
+
+
+def test_build_weekly_report_change_pct_is_none_without_previous(tmp_path):
+    """上期无数据时环比必须是 None，且报告里明确说明无法计算。
+
+    刻意不返回 0 或 +100%：上期没有数据时「增长率」没有定义，
+    给一个具体数字比留空更误导。
+    """
+    from socialmedia_agent.services.weekly_report import (
+        build_weekly_report,
+        render_weekly_report,
+    )
+
+    db = seed_db(tmp_path)  # 种子里上期窗口内没有内容
+    summary = build_weekly_report(db, make_memory(tmp_path), "bilibili:90001")
+
+    assert summary["previous_content_count"] == 0
+    assert summary["content_count_change_pct"] is None
+    assert summary["total_views_change_pct"] is None
+
+    report = render_weekly_report(summary)
+    assert "环比" in report
+    assert "无法计算" in report

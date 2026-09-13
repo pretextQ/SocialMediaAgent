@@ -64,7 +64,41 @@
 | Agent 记忆/反思 | `agent_service/memory/`、`agent_service/reflection/` | 参考 | P2/P3 | Memory 设计参考 |
 | 推送 notifier | `radar_service/notifier/` | 参考 | P5（可选） | 报告/告警推送 |
 
-## 四、用法说明
+## 四、P7 复评补充（2026-09-13，前端落地后再次勘探）
+
+> 背景：ADR-0005（前端）落地后重新通读两个参考项目，寻找本表前三节**未覆盖**的模块。
+> 下表为本次新识别的候选；**已采纳**的注明落地位置。
+
+### 4.1 已采纳（本次）
+
+| 候选 | 关键引用（已核验） | 决策 | 落地位置 |
+|---|---|---|---|
+| 角色级模型配置（默认模型 + 每角色独立） | MediaRadar `core/model_config_db.py`、`subscription_service/api.py` | 重新实现 | `config.py` 的 `llm_model_*` 字段与 `model_for()`；`llm/factory.py::build_gateway(role=...)`；`api/deps.py::get_gateway` |
+| 熔断器状态可观测 | MediaRadar `core/circuit_breaker.py` + `/api/circuit/states` | 重新实现（只读展示） | `GET /system/status` 新增 `llm_circuit_state` / `llm_circuit_failures` |
+| 周报环比 | MatrixFlow `services/WeeklyReportService.ts: calculateTrendPercent()` | 重新实现 | `services/weekly_report.py` 的 `_change_pct` / `_format_pct` 与「环比」小节 |
+
+### 4.2 待评估（未动工）
+
+| 候选 | 关键引用（已核验） | 初判 | 前置条件 |
+|---|---|---|---|
+| 三角色评审图 analyst→reviewer→director | MediaRadar `radar_service/analysis_graph.py`（`reviewer_node`、`route_after_reviewer`） | 参考 | 需先小样本跑 `evaluation/quality_runner` 验证是否真提升；评委与被测同端点，存在自偏好 |
+| 话题演变时间线 | MediaRadar `radar_service/topic_tracker.py`（`build_evolution_timeline` / `get_topic_history` / `_upsert_topic_point`） | 参考 | **被「Metric/Topic 快照 vs 时间序列」未决技术债阻塞**（见 `status.md` G 组） |
+| 周报 / 告警多通道投递 | MediaRadar `radar_service/notifier/`（`base.py` + `registry.py` + email/wecom/feishu/rss） | 参考 | 需先决定是否引入网络出口与凭证；应默认关闭、缺配置不启用 |
+| 持久化任务队列 | MatrixFlow `core/TaskScheduler.ts` + `QueueManager.ts` | 暂不采用 | 本地单进程工具，APScheduler + 磁盘产物够用 |
+
+### 4.3 明确不采用（本次复评再次确认）
+
+| 候选 | 理由 |
+|---|---|
+| `core/auth_jwt.py` / `login_lockout.py` / `quota_db.py` / `subscription_db.py` / `security_middleware.py` | 多租户 SaaS 机制；与「单用户本地工具」定位冲突，且要动核心数据模型（须先走 ADR） |
+| `radar_service/embed_cluster.py`（HDBSCAN 聚类） | 需语义嵌入 + 新依赖；默认 `HashEmbedder` 是字符哈希，聚类无意义（应先解决 RAG 语义化） |
+| `radar_service/vision_agent.py`（Qwen-VL 封面解析） | 引入视觉模型与新成本面，非当前能力主线 |
+| `radar_service/push_generator.py`（48KB HTML 邮件模板） | 本项目报告是 markdown，无 HTML 邮件场景 |
+| `gateway/main.py`、`radar_service/db_manager.py` | 他们的网关与 DB 层；本项目已有 FastAPI + SQLAlchemy + Alembic |
+| MatrixFlow `Watchdog.ts` / `FailureCoordinator.ts` / `BrowserPool.ts` | 服务于浏览器常驻进程池；本项目无浏览器运行时（采集走独立子进程） |
+| MediaRadar `core/sanitize.py` | 解决 HTML / 邮件通道的 XSS；本项目前端用 `react-markdown`（默认不渲染裸 HTML），**该风险不存在**。真正缺的是**提示注入防护**（不可信采集内容进 prompt），属另一议题 |
+
+## 五、用法说明
 
 1. 进入某个阶段（如 P2 实现 llm_gateway）前，先为本表对应行生成正式 ADR（复制 `template.md`），落盘为 `docs/adr/NNNN-*.md`，更新状态。
 2. 若实际源码与 `docs/source-analysis.md` 不一致，以源码为准并记录差异。

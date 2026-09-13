@@ -32,6 +32,12 @@ router = APIRouter(prefix="/system", tags=["system"])
 class SystemStatusResponse(BaseModel):
     llm_configured: bool
     llm_model: str
+    # 已显式配置的「角色 -> 模型」覆盖（未配置的角色不出现在这里，回落 llm_model）
+    llm_model_overrides: dict[str, str]
+    # LLM 熔断器状态（供排查「为什么突然变慢/变快」）；未注入 gateway 时为 None。
+    # 注意：熔断状态存在进程内存，仅反映本实例，不要当集群状态读。
+    llm_circuit_state: str | None
+    llm_circuit_failures: int | None
     llm_base_url: str
     database_url: str
     memory_database_url: str
@@ -71,10 +77,16 @@ def get_system_status(
     database = request.app.state.database
     retriever = getattr(request.app.state, "retriever", None)
     memory_store = get_memory_store(request)
+    # 默认 gateway（role=None）：用于只读展示熔断状态；按角色的 gateway 由各 Agent 端点自行解析
+    gateway = getattr(request.app.state, "gateway", None)
+    breaker = getattr(gateway, "breaker", None)
 
     return SystemStatusResponse(
         llm_configured=settings.llm_api_key is not None,
         llm_model=settings.llm_model,
+        llm_model_overrides=settings.llm_model_overrides,
+        llm_circuit_state=breaker.state if breaker is not None else None,
+        llm_circuit_failures=breaker.failure_count if breaker is not None else None,
         llm_base_url=settings.llm_base_url,
         database_url=database.url,
         memory_database_url=settings.memory_database_url,

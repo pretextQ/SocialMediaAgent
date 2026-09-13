@@ -14,6 +14,7 @@ from pathlib import Path
 
 from socialmedia_agent.agents.account_strategy.graph import build_account_strategy_graph
 from socialmedia_agent.agents.tools.catalog import build_registry
+from socialmedia_agent.agents.tools.registry import ToolRegistry
 from socialmedia_agent.config import get_settings
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.gateway import LLMGateway
@@ -30,6 +31,36 @@ def _registry(database: Database, memory_store: SQLAlchemyMemoryStore | None) ->
     )
 
 
+def _sum_views(registry: ToolRegistry, contents: list[dict]) -> Decimal:
+    """把若干内容的 views 指标求和（经 Tool 取数，不直接查库）。"""
+    total = Decimal("0")
+    for content in contents:
+        for metric in registry.invoke(
+            "get_content_metrics", content_id=content["canonical_id"]
+        ):
+            if metric.get("metric_type") == "views":
+                total += Decimal(metric.get("value", "0"))
+    return total
+
+
+def _change_pct(current: Decimal, previous: Decimal) -> float | None:
+    """环比百分比；上期为 0 时返回 None。
+
+    刻意不返回 0 或 +100%：上期没有数据时「增长率」没有定义，
+    给出一个具体数字会比留空更误导。
+    """
+    if previous == 0:
+        return None
+    return float((current - previous) / previous * 100)
+
+
+def _format_pct(value: float | None) -> str:
+    """环比展示：None -> 明确说明无法计算；否则带符号百分比。"""
+    if value is None:
+        return "—（上期无数据，无法计算）"
+    return f"{value:+.1f}%"
+
+
 def build_weekly_report(
     database: Database,
     memory_store: SQLAlchemyMemoryStore | None,
@@ -40,23 +71,26 @@ def build_weekly_report(
     """聚合账号近 days 天表现并复用 Account Strategy Agent，返回结构化周报摘要。"""
     reg = _registry(database, memory_store)
     profile = reg.invoke("get_account_profile", account_id=account_id) or {}
-    recent = reg.invoke("get_recent_contents", account_id=account_id, limit=50)
+    # 取 100 条（Tool 上限）以同时覆盖「本周期」与「上一等长周期」两个窗口
+    recent = reg.invoke("get_recent_contents", account_id=account_id, limit=100)
 
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=days)
+    prev_since = since - timedelta(days=days)
     weekly: list[dict] = []
-    for c in recent:
-        pub = c.get("publish_time")
-        if not pub:
+    previous: list[dict] = []
+    for content in recent:
+        published_raw = content.get("publish_time")
+        if not published_raw:
             continue
-        if datetime.fromisoformat(pub) >= since:
-            weekly.append(c)
+        published = datetime.fromisoformat(published_raw)
+        if published >= since:
+            weekly.append(content)
+        elif published >= prev_since:
+            previous.append(content)
 
-    weekly_views = Decimal("0")
-    for c in weekly:
-        for m in reg.invoke("get_content_metrics", content_id=c["canonical_id"]):
-            if m.get("metric_type") == "views":
-                weekly_views += Decimal(m.get("value", "0"))
+    weekly_views = _sum_views(reg, weekly)
+    previous_views = _sum_views(reg, previous)
 
     merged = build_account_strategy_graph(reg, gateway).invoke({"account_id": account_id})
 
@@ -70,6 +104,11 @@ def build_weekly_report(
         "content_count": count,
         "total_views": str(weekly_views),
         "avg_views": str(int(weekly_views / count)) if count else "0",
+        # 环比：与上一个等长周期对比
+        "previous_content_count": len(previous),
+        "previous_total_views": str(previous_views),
+        "content_count_change_pct": _change_pct(Decimal(count), Decimal(len(previous))),
+        "total_views_change_pct": _change_pct(weekly_views, previous_views),
         "health": merged["strategy"].account_health,
         "strategy_summary": merged["strategy"].strategy_summary,
     }
@@ -87,6 +126,12 @@ def render_weekly_report(summary: dict) -> str:
         f"- 发布内容：{summary['content_count']} 条",
         f"- 累计播放量：{summary['total_views']}",
         f"- 平均播放量：{summary['avg_views']}",
+        "",
+        "## 环比（对比上一个等长周期）",
+        f"- 发布内容：{_format_pct(summary.get('content_count_change_pct'))}"
+        f"（上期 {summary.get('previous_content_count', 0)} 条）",
+        f"- 累计播放量：{_format_pct(summary.get('total_views_change_pct'))}"
+        f"（上期 {summary.get('previous_total_views', '0')}）",
         "",
         f"## 账号健康度：{summary['health']}/100",
         "",

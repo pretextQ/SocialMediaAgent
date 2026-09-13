@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **412 passed**（需人工执行，见第 2 节 CI 说明）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **430 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 412 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 430 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -37,7 +37,7 @@
 
 ## 4. 当前对外能力
 
-- **HTTP**：**8 个查询端点**（accounts / contents / metrics / system-status / reports×2）+ **6 个 Agent 端点**（见 [`api.md`](api.md)）；Agent 响应均带 `source: llm|rules`
+- **HTTP**：**8 个查询端点**（accounts / contents / metrics / system-status / reports×2）+ **6 个 Agent 端点**（见 [`api.md`](api.md)）；Agent 响应均带 `source: llm|rules`；`/system/status` 还暴露**角色模型覆盖**与**LLM 熔断状态**
 - **前端**：`app/frontend/` 9 个页面（见第 7 节 H 组与 [`../app/frontend/README.md`](../app/frontend/README.md)）
 - **MCP**：7 个工具（stdio）
 - **CLI**：`import_csv`（手工导入真实数据，可用）、`ingest`（自动采集，阻塞）、`seed_knowledge`（知识库）
@@ -141,6 +141,12 @@
       样本局限：19 个账号**各 1 条**内容，不能支撑账号内趋势分析。
 
 ### C. AI 内核补强
+
+- [x] **P7 复评三项低成本补强**（候选来源与决策见 [`adr/README.md`](adr/README.md) 第四节）：
+      ① **角色级模型配置**：`LLM_MODEL_<ROLE>` + `Settings.model_for()`，未配置的角色回落 `LLM_MODEL`；
+      每个角色的 gateway 有**独立熔断器**（`llm:<role>`）；经 `api/deps.get_gateway` 解析，未注入 factory 时回落单一 gateway（既有测试不受影响）。
+      ② **熔断状态可观测**：`/system/status` 新增 `llm_circuit_state` / `llm_circuit_failures`。
+      ③ **周报环比**：与上一个等长周期对比内容数与播放量；上期为 0 时返回 `None` 并在报告里写明「无法计算」，**不给 +100% 这类误导数字**。
 
 - [x] **Account Strategy 的真实 Tool Calling**：新增 `agents/tool_loop.py`（通用 tool-calling 循环）、
       `llm/providers.py` 的 `ToolCallingProvider` / `complete_with_tools`、`account_strategy/agentic.py`。

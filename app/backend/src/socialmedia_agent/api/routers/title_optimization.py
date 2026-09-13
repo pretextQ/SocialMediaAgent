@@ -17,6 +17,8 @@ from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.content_repo import ContentRepository
 
+from ..deps import get_gateway
+
 router = APIRouter(prefix="/titles", tags=["title_optimization"])
 
 
@@ -59,7 +61,7 @@ def optimize_title(req: TitleOptimizeRequest, request: Request) -> TitleOptimiza
     )
     facts = title_capability.gather(registry, content_id=req.content_id, title=req.title)
     optimization, source = title_capability.analyze_with_source(
-        getattr(request.app.state, "gateway", None), facts
+        get_gateway(request, "title_optimization"), facts
     )
     return TitleOptimizationResponse(
         optimization=optimization,

@@ -40,6 +40,9 @@ export const METRIC: Metric = {
 export const STATUS: SystemStatus = {
   llm_configured: true,
   llm_model: 'deepseek-flash',
+  llm_model_overrides: {},
+  llm_circuit_state: 'closed',
+  llm_circuit_failures: 0,
   llm_base_url: 'https://api.deepseek.com/v1',
   database_url: 'sqlite:///data/sma.db',
   memory_database_url: 'sqlite:///data/sma_memory.db',

@@ -38,6 +38,11 @@ class CircuitBreaker:
     def state(self) -> str:
         return self._state.value
 
+    @property
+    def failure_count(self) -> int:
+        """连续失败计数（供 /system/status 只读展示；重置发生在成功调用后）。"""
+        return self._failures
+
     def call(self, fn, *args, **kwargs):
         """受熔断保护地调用 fn；OPEN 时短路抛 CircuitBreakerOpen。"""
         if self._state == CircuitState.OPEN:

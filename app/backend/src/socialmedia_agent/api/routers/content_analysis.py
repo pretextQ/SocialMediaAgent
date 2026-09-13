@@ -17,6 +17,8 @@ from socialmedia_agent.agents.tools.catalog import build_registry
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.content_repo import ContentRepository
 
+from ..deps import get_gateway
+
 router = APIRouter(prefix="/contents", tags=["content_analysis"])
 
 
@@ -47,7 +49,7 @@ def analyze_content(content_id: str, request: Request) -> ContentAnalysisRespons
     )
 
     graph = build_content_analysis_graph(
-        registry, gateway=getattr(request.app.state, "gateway", None)
+        registry, gateway=get_gateway(request, "content_analysis")
     )
     state = graph.invoke({"content_id": content_id})
     return ContentAnalysisResponse(

@@ -39,6 +39,15 @@ export const METRIC_LABELS: Record<MetricType, string> = {
   favorites: '收藏',
 }
 
+/** Agent 角色显示名（与后端 LLM_MODEL_<ROLE> 的角色名一一对应） */
+export const ROLE_LABELS: Record<string, string> = {
+  account_strategy: '账号诊断与策略',
+  content_analysis: '内容分析',
+  trend_analysis: '趋势分析',
+  topic_recommendation: '选题推荐',
+  title_optimization: '标题优化',
+}
+
 export const SOURCE_LABELS: Record<MetricSource, string> = {
   mediacrawler: '采集',
   matrixflow: '自有账号',
@@ -214,6 +223,11 @@ export interface ReportDetail {
 export interface SystemStatus {
   llm_configured: boolean
   llm_model: string
+  /** 已显式配置的「角色 -> 模型」覆盖；未配置的角色不出现在这里，回落 llm_model */
+  llm_model_overrides: Record<string, string>
+  /** LLM 熔断器状态（进程内存，单实例视角）；未注入 gateway 时为 null */
+  llm_circuit_state: string | null
+  llm_circuit_failures: number | null
   llm_base_url: string
   database_url: string
   memory_database_url: string

@@ -16,6 +16,8 @@ from socialmedia_agent.agents.topic_recommendation.schemas import TopicRecommend
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.repositories.account_repo import AccountRepository
 
+from ..deps import get_gateway
+
 router = APIRouter(prefix="/accounts", tags=["topic_recommendation"])
 
 
@@ -46,7 +48,7 @@ def recommend_topics(account_id: str, request: Request) -> TopicRecommendationRe
     )
     facts = topic_capability.gather(registry, account_id)
     recommendation, source = topic_capability.analyze_with_source(
-        getattr(request.app.state, "gateway", None), facts
+        get_gateway(request, "topic_recommendation"), facts
     )
     return TopicRecommendationResponse(
         recommendation=recommendation,

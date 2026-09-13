@@ -73,6 +73,42 @@ class Settings(BaseSettings):
         alias="SMA_REPORT_DIR",
     )
 
+    # 各 Agent 角色的模型覆盖（可选）。借鉴 MediaRadar「默认模型 + 角色独立配置」的做法：
+    # 推理重的角色可用强模型，轻量角色可用更快/更便宜的模型；未配置的角色回落 llm_model。
+    llm_model_account_strategy: str | None = Field(
+        default=None, alias="LLM_MODEL_ACCOUNT_STRATEGY"
+    )
+    llm_model_content_analysis: str | None = Field(
+        default=None, alias="LLM_MODEL_CONTENT_ANALYSIS"
+    )
+    llm_model_trend_analysis: str | None = Field(
+        default=None, alias="LLM_MODEL_TREND_ANALYSIS"
+    )
+    llm_model_topic_recommendation: str | None = Field(
+        default=None, alias="LLM_MODEL_TOPIC_RECOMMENDATION"
+    )
+    llm_model_title_optimization: str | None = Field(
+        default=None, alias="LLM_MODEL_TITLE_OPTIMIZATION"
+    )
+
+    @property
+    def llm_model_overrides(self) -> dict[str, str]:
+        """已**显式配置**的「角色 -> 模型」映射（未配置的角色不出现在结果里）。"""
+        candidates: dict[str, str | None] = {
+            "account_strategy": self.llm_model_account_strategy,
+            "content_analysis": self.llm_model_content_analysis,
+            "trend_analysis": self.llm_model_trend_analysis,
+            "topic_recommendation": self.llm_model_topic_recommendation,
+            "title_optimization": self.llm_model_title_optimization,
+        }
+        return {role: model for role, model in candidates.items() if model}
+
+    def model_for(self, role: str | None) -> str:
+        """取角色应使用的模型；role 为空或该角色未配置时回落 llm_model。"""
+        if not role:
+            return self.llm_model
+        return self.llm_model_overrides.get(role, self.llm_model)
+
 
 @lru_cache
 def get_settings() -> Settings:

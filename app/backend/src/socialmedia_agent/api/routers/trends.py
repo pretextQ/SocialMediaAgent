@@ -16,6 +16,8 @@ from socialmedia_agent.agents.trend_analysis.graph import build_trend_analysis_g
 from socialmedia_agent.agents.trend_analysis.schemas import TrendAnalysisOutput
 from socialmedia_agent.database.session import Database
 
+from ..deps import get_gateway
+
 router = APIRouter(prefix="/trends", tags=["trend_analysis"])
 
 
@@ -46,7 +48,7 @@ def analyze_trends(req: TrendRequest, request: Request) -> TrendAnalysisResponse
     )
 
     graph = build_trend_analysis_graph(
-        registry, gateway=getattr(request.app.state, "gateway", None)
+        registry, gateway=get_gateway(request, "trend_analysis")
     )
     state = graph.invoke({"platform": req.platform, "period": req.period})
     return TrendAnalysisResponse(

@@ -1,19 +1,23 @@
 """FastAPI 应用工厂。
 
-create_app(database, memory_store, gateway, retriever) 支持注入测试依赖；
+create_app(database, memory_store, gateway, gateway_factory, retriever) 支持注入测试依赖；
 gateway / retriever 默认 None（规则兜底 / 空知识库），生产入口显式构建（见文件尾部）。
-模块级 app 使用默认数据库 + 配置构建的 gateway / 知识库 retriever。
+
+- `gateway`：默认 gateway（role=None），供 /system/status 读取熔断状态，并作为角色解析的兜底；
+- `gateway_factory`：`(role) -> LLMGateway | None`，生产入口按角色构建（各自模型与熔断）。
+  未注入时所有角色共用 `gateway`，既有测试无需改动。
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
-from socialmedia_agent.llm.factory import build_gateway
+from socialmedia_agent.llm.factory import build_gateway, build_role_gateway
 from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.rag.knowledge import build_knowledge_retriever
@@ -39,6 +43,7 @@ def create_app(
     memory_store: SQLAlchemyMemoryStore | None = None,
     gateway: LLMGateway | None = None,
     retriever: Retriever | None = None,
+    gateway_factory: Callable[[str], LLMGateway | None] | None = None,
 ) -> FastAPI:
     db = database or Database()
 
@@ -58,6 +63,7 @@ def create_app(
     app.state.memory_store = memory_store
     app.state.gateway = gateway
     app.state.retriever = retriever
+    app.state.gateway_factory = gateway_factory
 
     app.include_router(accounts.router, prefix="/api/v1")
     app.include_router(contents.router, prefix="/api/v1")
@@ -73,4 +79,8 @@ def create_app(
     return app
 
 
-app = create_app(gateway=build_gateway(), retriever=build_knowledge_retriever())
+app = create_app(
+    gateway=build_gateway(),
+    retriever=build_knowledge_retriever(),
+    gateway_factory=build_role_gateway,
+)
