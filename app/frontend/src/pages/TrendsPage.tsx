@@ -1,11 +1,19 @@
 import { useState } from 'react'
 import { api } from '../api/client'
-import { PLATFORM_LABELS } from '../api/types'
-import type { Platform } from '../api/types'
+import { DIRECTION_LABELS, PLATFORM_LABELS } from '../api/types'
+import type { Platform, TrendDirection } from '../api/types'
 import { BulletList, Card, EmptyState, ErrorState, Loading, ReportView, ScoreGauge, SourceBadge } from '../components'
 import { useAsync } from '../hooks/useAsync'
 
 const PLATFORMS = Object.keys(PLATFORM_LABELS) as Platform[]
+
+/** 演变方向的样式；rising/fading 用语义色，stable 与 new 保持中性。 */
+const DIRECTION_STYLES: Record<TrendDirection, string> = {
+  rising: 'rounded-full bg-green-50 px-1.5 py-0.5 font-medium text-green-700',
+  fading: 'rounded-full bg-red-50 px-1.5 py-0.5 font-medium text-red-700',
+  stable: 'rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-600',
+  new: 'rounded-full bg-blue-50 px-1.5 py-0.5 text-blue-700',
+}
 
 export function TrendsPage() {
   const [platform, setPlatform] = useState<Platform>('bilibili')
@@ -106,7 +114,23 @@ export function TrendsPage() {
                   <li key={topic.keyword}>
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="text-sm font-medium text-gray-800">{topic.keyword}</span>
-                      <span className="text-xs text-gray-500">{topic.post_count} 条</span>
+                      <span className="flex shrink-0 items-baseline gap-2 text-xs text-gray-500">
+                        <span>{topic.post_count} 条</span>
+                        {topic.direction ? (
+                          <span className={DIRECTION_STYLES[topic.direction]}>
+                            {DIRECTION_LABELS[topic.direction]}
+                            {topic.change_pct !== null &&
+                              ` ${topic.change_pct > 0 ? '+' : ''}${topic.change_pct}%`}
+                          </span>
+                        ) : (
+                          <span
+                            className="text-gray-400"
+                            title="该话题尚无历史观测；上升/消退需要多次导入积累观测后才能判断"
+                          >
+                            方向未知
+                          </span>
+                        )}
+                      </span>
                     </div>
                     <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                       <div

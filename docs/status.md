@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **446 passed**（需人工执行，见第 2 节 CI 说明）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **456 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 446 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 456 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -272,7 +272,9 @@
 - [x] **Metric / Topic 的快照 vs 时间序列语义** —— 已决策并落地（[`adr/0006-time-series.md`](adr/0006-time-series.md)）：
       快照表保持「最新值」语义不变，新增 `metric_observations` / `topic_observations` **只追加**观测表；
       `import_csv` 同步写入观测并新增 `--observed-at`（同批次重复导入收敛）。
-      **遗留**：观测表暂只有写入方，读取方（话题演变）待做。
+      **读侧已落地**：`get_trend_data` 输出每个话题的 `direction` / `change_pct` / `observation_count`，
+      `TrendTopic` 契约同步扩展（可选字段，向后兼容），报告出现「上升 / 消退 / 持平」标注。
+      仍为 `None` 的情况（无观测）被刻意与「持平」区分开。
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
 
 ### H. 前端（已实施）

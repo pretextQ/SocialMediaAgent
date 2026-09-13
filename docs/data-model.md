@@ -152,6 +152,7 @@ SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。**建表与变更走 Ale
 - ~~**Metric 是「最新快照」而不是时间序列**~~ —— **已决策并落地**（[ADR-0006](adr/0006-time-series.md)）：
   `metrics` / `topics` **保持**「最新快照」语义不变（既有 API / MCP / Tool / 评测零改动），
   新增 `metric_observations` / `topic_observations` 两张**只追加**观测表承担时间序列。
-  **仍存在的限制**：观测表目前**只有写入方**（`import_csv`），读取方（话题演变 / 指标序列分析）尚未落地；
+  **读侧**：趋势分析（`get_trend_data` Tool）已消费话题观测，输出 `direction` / `change_pct` / `observation_count`；
+  **仍存在的限制**：指标观测（`metric_observations`）目前只有写入方，尚无读取方；
   且不传 `--observed-at` 时每次导入都会追加一个观测点——这是时间序列的既定语义，需可复现时必须显式传该参数。
 - `Topic.platforms` 的 JSON 存储使平台过滤无法下推到 SQL，数据量大时需重新设计。

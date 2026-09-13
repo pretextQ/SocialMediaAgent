@@ -65,7 +65,9 @@
 - `AccountStrategyOutput`（/strategy 全量）: `{ account_id, account_health(0-100), strengths[], weaknesses[], anomalies[], recommendations[], strategy_summary, weekly_plan[], kpis[], risks[] }`
 - `DiagnosisOutput`（/diagnosis 子集）: `{ account_health(0-100), strengths[], weaknesses[], anomalies[], recommendations[] }`
 - `ContentAnalysisOutput`: `{ content_id, title?, summary, quality_score(0-100), strengths[], weaknesses[], suggestions[] }`
-- `TrendAnalysisOutput`: `{ platform, period, topics[{keyword,title?,post_count}], trend_score(0-100), insights[] }`（topics 以 DB 事实为准）
+- `TrendAnalysisOutput`: `{ platform, period, topics[{keyword,title?,post_count, direction?, change_pct?, observation_count?}], trend_score(0-100), insights[] }`（topics 以 DB 事实为准）
+  - `direction` ∈ `rising | fading | stable | new | null`，由**只追加的观测表**算出（见 [ADR-0006](adr/0006-time-series.md)）；
+    `null` 表示**尚无观测、方向未知**，与 `stable`（测过但没变）是两件事，前端不得把 `null` 当持平。
 - `TopicRecommendationOutput`: `{ account_id, topics[{title, rationale, estimated_interest(0-100)}] }`（与已有内容去重）
 - `TitleOptimizationOutput`: `{ original, optimized_titles[固定3条], explanation }`
 

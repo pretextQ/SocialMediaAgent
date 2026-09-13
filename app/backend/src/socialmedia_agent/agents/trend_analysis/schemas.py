@@ -14,6 +14,16 @@ class TrendTopic(BaseModel):
     keyword: str
     title: str | None = None
     post_count: int = 0
+    # 演变信号来自**只追加的观测表**（见 docs/adr/0006-time-series.md）。
+    # 无观测时 direction=None、observation_count=0 —— 表示「还不知道方向」，
+    # 而不是「持平」：这两件事必须能区分。
+    direction: str | None = Field(
+        default=None, description="rising | fading | stable | new；无观测时为 None"
+    )
+    change_pct: float | None = Field(
+        default=None, description="最近两次观测的变化百分比；上期为 0 时无定义"
+    )
+    observation_count: int = Field(default=0, description="该话题累计观测点数")
 
 
 class TrendAnalysisOutput(BaseModel):

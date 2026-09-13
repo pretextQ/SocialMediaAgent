@@ -43,15 +43,40 @@ def analyze(gateway: LLMGateway | None, facts: dict) -> TrendAnalysisOutput:
     return out
 
 
+# 演变方向的中文标注（渲染报告用）
+DIRECTION_LABELS = {
+    "rising": "上升",
+    "fading": "消退",
+    "stable": "持平",
+    "new": "新观测",
+}
+
+
 def _db_topics(facts: dict) -> list[TrendTopic]:
+    """topics 一律以 DB 事实回填（杜绝 LLM 编造话题），含演变信号。"""
     return [
         TrendTopic(
             keyword=t["keyword"],
             title=t.get("title"),
             post_count=int(t.get("post_count", 0)),
+            direction=t.get("direction"),
+            change_pct=t.get("change_pct"),
+            observation_count=int(t.get("observation_count", 0)),
         )
         for t in (facts.get("trends") or [])
     ]
+
+
+def _topic_line(topic: TrendTopic) -> str:
+    """话题一行：热度 + （有观测时的）演变方向与幅度。"""
+    base = f"{topic.keyword}（{topic.post_count} 条）"
+    if not topic.direction:
+        return base
+    label = DIRECTION_LABELS.get(topic.direction, topic.direction)
+    if topic.change_pct is None:
+        return f"{base} · {label}"
+    sign = "+" if topic.change_pct > 0 else ""
+    return f"{base} · {label} {sign}{topic.change_pct}%"
 
 
 def _rule_fallback(facts: dict) -> TrendAnalysisOutput:
@@ -68,6 +93,16 @@ def _rule_fallback(facts: dict) -> TrendAnalysisOutput:
         insights.append(f"热度最高话题：{top['keyword']}（{top['post_count']} 条）")
         if len(trends) > 1:
             insights.append(f"本期共监测到 {len(trends)} 个趋势话题")
+
+        # 演变信号：只在真有多次观测时给出，避免拿一次观测当趋势
+        rising = [t for t in trends if t.get("direction") == "rising"]
+        fading = [t for t in trends if t.get("direction") == "fading"]
+        if rising:
+            insights.append("上升话题：" + "、".join(t["keyword"] for t in rising))
+        if fading:
+            insights.append("消退话题：" + "、".join(t["keyword"] for t in fading))
+        if not rising and not fading and not any(t.get("observation_count") for t in trends):
+            insights.append("尚无历史观测，无法判断话题升降（需多次导入积累观测）")
     else:
         insights.append("当前周期无趋势话题数据")
 
@@ -82,7 +117,7 @@ def _rule_fallback(facts: dict) -> TrendAnalysisOutput:
 
 def render_report(analysis: TrendAnalysisOutput, facts: dict) -> str:
     """由结构化结果渲染人类可读 markdown（确定性）。"""
-    topics_items = [f"{t.keyword}（{t.post_count} 条）" for t in analysis.topics]
+    topics_items = [_topic_line(t) for t in analysis.topics]
     sections = [
         ("热门话题", topics_items),
         ("洞察", analysis.insights),

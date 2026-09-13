@@ -83,7 +83,7 @@
 | 候选 | 关键引用（已核验） | 初判 | 前置条件 |
 |---|---|---|---|
 | 三角色评审图 analyst→reviewer→director | MediaRadar `radar_service/analysis_graph.py`（`reviewer_node`、`route_after_reviewer`） | 参考 | 需先小样本跑 `evaluation/quality_runner` 验证是否真提升；评委与被测同端点，存在自偏好 |
-| 话题演变时间线 | MediaRadar `radar_service/topic_tracker.py`（`build_evolution_timeline` / `get_topic_history` / `_upsert_topic_point`） | 参考 | ✅ **前置已解除**：ADR-0006 已落地只追加观测表；下一步是**读侧**（趋势分析接入演变信号） |
+| 话题演变时间线 | MediaRadar `radar_service/topic_tracker.py`（`build_evolution_timeline` / `get_topic_history` / `_upsert_topic_point`） | **已部分采纳** | ✅ ADR-0006 落地观测表；趋势分析已消费（`direction` / `change_pct`）。**未做**：独立的演变时间线查询视图（多点序列 + 时间轴） |
 | 周报 / 告警多通道投递 | MediaRadar `radar_service/notifier/`（`base.py` + `registry.py` + email/wecom/feishu/rss） | 参考 | 需先决定是否引入网络出口与凭证；应默认关闭、缺配置不启用 |
 | 持久化任务队列 | MatrixFlow `core/TaskScheduler.ts` + `QueueManager.ts` | 暂不采用 | 本地单进程工具，APScheduler + 磁盘产物够用 |
 

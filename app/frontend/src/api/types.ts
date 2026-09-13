@@ -127,10 +127,23 @@ export interface ContentAnalysisOutput {
   suggestions: string[]
 }
 
+/** 话题演变方向；null 表示「尚无观测、方向未知」—— 与 'stable'（测过但没变）不同 */
+export type TrendDirection = 'rising' | 'fading' | 'stable' | 'new'
+
+export const DIRECTION_LABELS: Record<TrendDirection, string> = {
+  rising: '上升',
+  fading: '消退',
+  stable: '持平',
+  new: '新观测',
+}
+
 export interface TrendTopic {
   keyword: string
   title: string | null
   post_count: number
+  direction: TrendDirection | null
+  change_pct: number | null
+  observation_count: number
 }
 
 export interface TrendAnalysisOutput {

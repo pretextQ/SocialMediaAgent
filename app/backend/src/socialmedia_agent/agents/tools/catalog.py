@@ -24,6 +24,7 @@ from socialmedia_agent.models.content import ContentModel
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.observation_repo import TopicObservationRepository
 from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 from .base import Tool, ToolContext
@@ -167,21 +168,77 @@ def _search_operation_knowledge(ctx: ToolContext, query: str, top_k: int) -> lis
     return [{"id": h.id, "score": h.score, "payload": h.payload} for h in hits]
 
 
+# 演变判定阈值：变化幅度在 ±该百分比内视为持平，避免把噪声读成趋势
+EVOLUTION_STABLE_THRESHOLD_PCT = 5.0
+
+
+def topic_evolution(points: list[tuple[int, datetime]]) -> dict:
+    """由「发布量 + 观测时间」序列算出话题演变方向（纯函数，可单测）。
+
+    返回 direction / change_pct / observation_count：
+
+    - **无观测**（快照表有数据但从未记过观测）-> direction=None；
+    - **仅一次观测** -> "new"（还没有可比对象，不假装知道方向）；
+    - 相邻两次比较，幅度在 ±EVOLUTION_STABLE_THRESHOLD_PCT 内 -> stable；
+    - 上期为 0 且本期 > 0 -> "rising"，但 change_pct=None（增长率没有定义）。
+
+    刻意只比较**最近两次**观测：多点回归 / 趋势拟合需要更密的采样，
+    当前数据（一次导入一个点）还不支持，硬拟合会给出虚假的精确感。
+    """
+    if not points:
+        return {"direction": None, "change_pct": None, "observation_count": 0}
+
+    ordered = sorted(points, key=lambda item: item[1])
+    count = len(ordered)
+    if count == 1:
+        return {"direction": "new", "change_pct": None, "observation_count": 1}
+
+    previous_count = ordered[-2][0]
+    latest_count = ordered[-1][0]
+    if previous_count == 0:
+        direction = "rising" if latest_count > 0 else "stable"
+        return {"direction": direction, "change_pct": None, "observation_count": count}
+
+    change_pct = (latest_count - previous_count) / previous_count * 100
+    if change_pct > EVOLUTION_STABLE_THRESHOLD_PCT:
+        direction = "rising"
+    elif change_pct < -EVOLUTION_STABLE_THRESHOLD_PCT:
+        direction = "fading"
+    else:
+        direction = "stable"
+    return {
+        "direction": direction,
+        "change_pct": round(change_pct, 1),
+        "observation_count": count,
+    }
+
+
 def _get_trend_data(ctx: ToolContext, platform: str | None, period: int) -> list[dict]:
+    """趋势话题 + **演变信号**（来自只追加的观测表，见 ADR-0006）。
+
+    快照表给「当前热度」，观测表给「上升 / 消退」；没有观测时 direction 为 None，
+    而不是猜一个方向。
+    """
     with ctx.database.session() as session:
         since = datetime.now(timezone.utc) - timedelta(days=period)
         rows = TopicRepository(session).list(platform=platform, since=since)
-        return [
-            {
-                "keyword": r.keyword,
-                "title": r.title,
-                "post_count": r.post_count,
-                "first_seen": r.first_seen.isoformat() if r.first_seen else None,
-                "last_seen": r.last_seen.isoformat() if r.last_seen else None,
-                "summary": r.summary,
-            }
-            for r in rows
-        ]
+        observations = TopicObservationRepository(session)
+        result: list[dict] = []
+        for r in rows:
+            series = observations.series(keyword=r.keyword, limit=1000)
+            evolution = topic_evolution([(o.post_count, o.observed_at) for o in series])
+            result.append(
+                {
+                    "keyword": r.keyword,
+                    "title": r.title,
+                    "post_count": r.post_count,
+                    "first_seen": r.first_seen.isoformat() if r.first_seen else None,
+                    "last_seen": r.last_seen.isoformat() if r.last_seen else None,
+                    "summary": r.summary,
+                    **evolution,
+                }
+            )
+        return result
 
 
 def _get_historical_strategy(ctx: ToolContext, account_id: str) -> dict:

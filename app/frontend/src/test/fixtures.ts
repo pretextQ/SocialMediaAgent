@@ -37,6 +37,15 @@ export const METRIC: Metric = {
   raw_value: '1.2万',
 }
 
+export const TREND_TOPIC = {
+  keyword: 'AI 绘画',
+  title: null,
+  post_count: 120,
+  direction: 'rising' as const,
+  change_pct: 50.0,
+  observation_count: 2,
+}
+
 export const STATUS: SystemStatus = {
   llm_configured: true,
   llm_model: 'deepseek-flash',
