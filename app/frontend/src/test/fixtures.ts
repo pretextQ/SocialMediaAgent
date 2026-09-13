@@ -64,4 +64,5 @@ export const STATUS: SystemStatus = {
   topic_count: 0,
   report_dir: 'data/reports',
   report_count: 0,
+  notify_channels: [],
 }

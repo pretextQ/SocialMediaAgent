@@ -8,6 +8,7 @@ generate_all_weekly_reports：为全部账号生成并落盘
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -21,6 +22,9 @@ from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.memory.summarizer import Summarizer
 from socialmedia_agent.repositories.account_repo import AccountRepository
+from socialmedia_agent.services.notifier import NotifierRegistry
+
+logger = logging.getLogger(__name__)
 
 
 def _registry(database: Database, memory_store: SQLAlchemyMemoryStore | None) -> ToolRegistry:
@@ -147,6 +151,7 @@ def generate_all_weekly_reports(
     report_dir: str | None = None,
     days: int = 7,
     gateway: LLMGateway | None = None,
+    notifiers: NotifierRegistry | None = None,
 ) -> list[str]:
     """为全部账号生成周报并写入报告目录，返回写入文件路径列表。
 
@@ -163,7 +168,12 @@ def generate_all_weekly_reports(
     for account_id in account_ids:
         summary = build_weekly_report(database, memory_store, account_id, days, gateway)
         filename = f"weekly_{account_id.replace(':', '_')}_{summary['week_end']}.md"
+        content = render_weekly_report(summary)
         path = target_dir / filename
-        path.write_text(render_weekly_report(summary), encoding="utf-8")
+        path.write_text(content, encoding="utf-8")
         written.append(str(path))
+        # 投递是可选的旁路：失败不回滚已落盘的周报（见 services/notifier.py 的设计约束）
+        if notifiers:
+            results = notifiers.send_all(title=filename, markdown=content)
+            logger.info("周报投递 file=%s channels=%s", filename, results)
     return written

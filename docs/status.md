@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **456 passed**（需人工执行，见第 2 节 CI 说明）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **464 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 456 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 464 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -199,6 +199,14 @@
 - [ ] RAG 语义嵌入：默认 `HashEmbedder` 不具备语义相似度（配置 `SMA_EMBEDDING_MODEL` 可切换）。
 
 ### D. P5 DoD 遗留
+
+- [x] **报告投递通道**（P7，借鉴 MediaRadar `notifier/` 的抽象手法，刻意做最小）：
+      `services/notifier.py` 提供 `Notifier` 抽象 + `FileNotifier` / `WebhookNotifier` + `NotifierRegistry`；
+      **默认关闭**（未配置 `SMA_NOTIFY_WEBHOOK_URL` 时不注册任何通道，且空 registry 为假值）；
+      **单通道失败不影响其他通道**——周报已落盘，投递只是旁路。
+      `/system/status` 暴露 `notify_channels`；前端「系统状态」页显示投递通道。
+      **未做**：邮件 / IM 通道（需引入 SMTP 或第三方 SDK）；调度器仍未挂到 API 启动流程。
+
 
 - [ ] 自有账号只读适配器 `connectors/matrixflow_ref/` + 测试（ADR-0004 已决策，实现待做）
 

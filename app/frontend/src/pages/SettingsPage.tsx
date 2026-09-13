@@ -58,6 +58,14 @@ export function SettingsPage() {
                 <Row label="知识库文档" value={data.knowledge_doc_count + ' 篇'} />
                 <Row label="Memory 条目" value={data.memory_entry_count + ' 条'} />
                 <Row label="周报文件" value={data.report_count + ' 篇'} />
+                <Row
+                  label="报告投递"
+                  value={
+                    data.notify_channels.length
+                      ? data.notify_channels.join('、')
+                      : '未配置（仅落盘）'
+                  }
+                />
               </dl>
               {data.topic_count === 0 && (
                 <p className="mt-3 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700">

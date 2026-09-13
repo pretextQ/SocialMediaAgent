@@ -133,6 +133,48 @@ def test_generate_all_weekly_reports_defaults_to_settings_dir(tmp_path, monkeypa
     assert all(Path(p).parent == target for p in written)
 
 
+# ---- 投递旁路（P7） ----
+
+
+def test_generate_all_weekly_reports_dispatches_to_notifiers(tmp_path):
+    """配置了通道时，每篇周报生成后都会被投递；投递内容与落盘内容一致。"""
+    from socialmedia_agent.services import weekly_report as wr
+    from socialmedia_agent.services.notifier import Notifier, NotifierRegistry
+
+    sent: list[tuple[str, str]] = []
+
+    class _Recorder(Notifier):
+        name = "recorder"
+
+        def send(self, *, title: str, markdown: str) -> bool:
+            sent.append((title, markdown))
+            return True
+
+    db = seed_db(tmp_path)
+    mem = make_memory(tmp_path)
+    written = wr.generate_all_weekly_reports(
+        db, mem, str(tmp_path / "reports"), notifiers=NotifierRegistry([_Recorder()])
+    )
+
+    assert len(written) == 2
+    assert len(sent) == 2
+    for name, markdown in sent:
+        assert name.startswith("weekly_")
+        assert markdown.startswith("# 运营周报")
+
+
+def test_generate_all_weekly_reports_without_notifiers_still_writes_files(tmp_path):
+    """不传 notifiers 时行为不变（只有落盘），保证向后兼容。"""
+    from socialmedia_agent.services.weekly_report import generate_all_weekly_reports
+
+    db = seed_db(tmp_path)
+    mem = make_memory(tmp_path)
+    written = generate_all_weekly_reports(db, mem, str(tmp_path / "reports"))
+
+    assert len(written) == 2
+    assert all(Path(p).exists() for p in written)
+
+
 # ---- 环比（对比上一个等长周期） ----
 
 

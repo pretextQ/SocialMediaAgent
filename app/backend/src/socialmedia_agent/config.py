@@ -73,6 +73,9 @@ class Settings(BaseSettings):
         alias="SMA_REPORT_DIR",
     )
 
+    # 报告投递通道（可选）：配置了 webhook URL 才注册该通道；留空=只有文件落盘
+    notify_webhook_url: str | None = Field(default=None, alias="SMA_NOTIFY_WEBHOOK_URL")
+
     # 各 Agent 角色的模型覆盖（可选）。借鉴 MediaRadar「默认模型 + 角色独立配置」的做法：
     # 推理重的角色可用强模型，轻量角色可用更快/更便宜的模型；未配置的角色回落 llm_model。
     llm_model_account_strategy: str | None = Field(

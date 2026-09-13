@@ -253,4 +253,6 @@ export interface SystemStatus {
   topic_count: number
   report_dir: string
   report_count: number
+  /** 已启用的报告投递通道；空数组表示「只落盘、不投递」（默认） */
+  notify_channels: string[]
 }

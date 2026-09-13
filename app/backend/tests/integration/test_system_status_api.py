@@ -117,6 +117,8 @@ def test_system_status_aggregates_counts_and_paths(tmp_path):
     assert body["report_count"] == 2  # 只数 *.md
     assert body["report_dir"] == str(reports)
     assert body["database_url"] == db.url
+    # 未配置 SMA_NOTIFY_WEBHOOK_URL -> 默认不投递
+    assert body["notify_channels"] == []
 
 
 def test_system_status_without_key_reports_not_configured(tmp_path):

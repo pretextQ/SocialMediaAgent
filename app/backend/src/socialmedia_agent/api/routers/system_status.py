@@ -23,6 +23,7 @@ from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
 from socialmedia_agent.repositories.topic_repo import TopicRepository
+from socialmedia_agent.services.notifier import build_notifier_registry
 
 from ..deps import get_memory_store, get_session
 
@@ -50,6 +51,8 @@ class SystemStatusResponse(BaseModel):
     topic_count: int
     report_dir: str
     report_count: int
+    # 已启用的报告投递通道（未配置时为空列表 —— 默认不投递）
+    notify_channels: list[str]
 
 
 def _count_report_files(report_dir: str) -> int:
@@ -99,4 +102,5 @@ def get_system_status(
         topic_count=TopicRepository(session).count(),
         report_dir=settings.report_dir,
         report_count=_count_report_files(settings.report_dir),
+        notify_channels=build_notifier_registry(settings).channels,
     )
