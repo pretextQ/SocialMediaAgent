@@ -70,5 +70,6 @@ docs/
     ├── 0002-llm-gateway.md
     ├── 0003-account-diagnosis.md
     ├── 0004-own-account-data.md
-    └── 0005-frontend.md
+    ├── 0005-frontend.md
+    └── 0006-time-series.md
 ```

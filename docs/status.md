@@ -1,6 +1,6 @@
 # SocialMediaAgent 项目状态
 
-> 更新：2026-09-13
+> 更新：2026-09-13（含本次会话止点，见第 9.1 节）
 > 本文是项目**唯一进度来源**：现状、DoD 对照、未完成清单、续作步骤。
 > 架构见 [`architecture.md`](architecture.md)；领域模型见 [`data-model.md`](data-model.md)；
 > 合规边界见 [`compliance.md`](compliance.md)；工程规范见 [`../AGENTS.md`](../AGENTS.md)。
@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **466 passed**（需人工执行，见第 2 节 CI 说明）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **472 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 466 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> **472 passed**（后端）；前端 `npm test` -> 17 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 | 一键启动 | `start.cmd`（demo → 8001 / real → 8000，前端 5173）。启动器有 AST 回归测试（`tests/unit/test_start_script.py`） |
@@ -268,6 +268,22 @@
       且本项目评委与被测 Agent 用**同一个端点**，存在**自偏好**风险（无法用不同模型互评）。
       overall 的 std=4.1、conciseness 的 34 分跨度都说明：**不要在单轮上做结论**。
 
+      **跨会话漂移实测（重要，2026-09-13 复跑）**：用**同一套用例、同一条命令、同一真实库**
+      换一次会话重跑，得到 **81.2 ± 2.1**（vs 上表 **75.0 ± 4.1**）。
+      两者均值相差 **6.2 分**，`±1 std` 区间（70.9~79.1 与 79.1~83.3）**恰好相切于 79.1**，
+      即**基本不重叠**——说明**评委的绝对分跨会话会整体平移**，而这不是代码变化造成的
+      （期间生成侧与评委侧都未改动）。注意这也意味着 `std` 本身**不足以覆盖**会话间漂移。
+
+      **由此定下的纪律**：
+
+      1. **绝对分只在同一次运行内可比**。任何 A/B（例如评审节点前后）必须落在**同一批运行**里，
+         拿本次分数去比历史数字是**无效对照**——两版报告都留在
+         [`eval/`](eval/)（`eval_quality_real.md` / `eval_quality_real_rerun.md`）可自行核对。
+      2. **维度内部的相对差异比总分稳**。两次运行里 `structure` 都稳定在 85~90，
+         而 `conciseness` 两次都最低且跨度最大（48~82 / 66~88）——
+         「结构齐全但偏啰嗦」这个**定性结论**是可复现的，**具体分值**不是。
+      3. 这条也再次印证 `docs/eval/README.md` 的口径：**单轮 + 单会话的数字不能下结论**。
+
 ### F. P7 打磨
 
 - [ ] docker-compose 部署、架构图与演示脚本
@@ -340,6 +356,43 @@
    部署产物 / 替换采集通道。完整缺口清单见 [`compliance.md`](compliance.md) 第 6 节与第 8 节风险表。
 
 > 严格遵循 [`AGENTS.md`](../AGENTS.md)：每次一个小任务 -> 先写测试（TDD）-> 跑测试 -> `git diff` -> commit + push。
+
+---
+
+## 9.1 本次会话止点（2026-09-13，交接用）
+
+**做了什么**：修掉一个**阻碍使用**的启动器缺陷（[`issues.md`](issues.md) #17）。
+用户反馈「看不到页面」，但三处服务探测全绿；去读产出该状态的 `app/scripts/start.ps1` 后定位到：
+`$env:VITE_API_TARGET` 原先只在「前端需要新启动」的 `else` 分支里导出，于是 5173 被复用时会回落到
+Vite 自己的 `8000` 默认值，而 demo 后端在 `8001` —— **前端 `/api` 全部打到空端口**，
+HTML 壳却照常 200，表现为「页面能打开但没数据」。
+
+**当前基线**：后端 **472 passed**（新增 6 项启动器 AST 回归）、前端 **17 passed**；
+HEAD 与 `origin/main` 同步于 `e3e1786`。
+
+**验证纪律上的两点记录**（都写进了 #17）：
+
+- 新增的启动器回归**用 mutation 验证过**：还原成 bug 形态 → 2 项立即变红，恢复后变绿。
+  第一版测试写完是「全绿但没牙」的（把「语句包含某文本」误当成「该语句就是赋值」，
+  而嵌套 `if` 内的赋值会被外层 if 那条顶层语句包含），按**语句首行**匹配后才真正抓到。
+- 过程中我曾怀疑「`Start-Process` 子进程不继承父进程环境变量」，**实测推翻**（子进程读到了）。
+  未验证的推断没有写进文档。
+
+**队列第 1 项（reviewer 评审节点）的前置证据已就绪**：单遍基线已跑（真实数据 3 轮 × 2 用例），
+并存档为 [`eval/eval_quality_real_rerun.md`](eval/eval_quality_real_rerun.md)。
+**关键结论**：评委绝对分**跨会话会整体平移**（75.0 ± 4.1 → 81.2 ± 2.1，`±1 std` 区间仅相切，
+期间代码未变）。因此 reviewer 的 A/B **必须落在同一批运行内对照**；
+这也意味着「先证明真提升再上」这一步**必须在一次运行里同时跑 draft 与 review-revise 两条路径**，
+而不是拿本次分数比历史报告。详见第 7 节 E 组。
+
+**下一步（按建议优先级）**：
+
+1. **reviewer 评审节点**（analyst→reviewer→director）：先用 `quality_runner` 做**同批** A/B，
+   证明提升再上；注意评委与被测同端点存在**自偏好**。
+2. **email / IM / RSS 投递通道**（扩展点在 `services/notifier.py`，现只有 webhook + 文件落盘）。
+3. **`metric_observations` 的读侧**（表已在写，尚无读方）。
+4. **独立的话题演变时间线查询视图**（现只有趋势分析顺带消费）。
+5. **CI 未生效**：remote 为 Gitee，`.github/workflows/ci.yml` 不触发；需接 Gitee Go 或镜像到 GitHub。
 
 ---
 

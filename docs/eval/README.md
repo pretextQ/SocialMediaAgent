@@ -11,6 +11,7 @@
 | `eval_real_flash_runs3.md` | 同一评测在 `deepseek-flash` 上**重跑复现**（llm 仍 50%，但 std 由 0 变为 **±41%**，暴露逐轮抖动） |
 | `eval_grounding_real.md` | 数据准确性：报告中的数字是否可溯源 |
 | `eval_quality_real.md` | 输出质量（LLM 评委，**分数不是 ground truth**） |
+| `eval_quality_real_rerun.md` | **同一套用例与命令、换一次会话重跑**的对照：75.0 ± 4.1 → 81.2 ± 2.1，量化了**评委的跨会话漂移** |
 | `eval_retrieval_k3.md` | RAG 检索质量（确定性，**不需要密钥**） |
 | `eval_report.md` | 最早一版单轮报告，保留用于对照「单轮不可信」 |
 
@@ -29,7 +30,9 @@
 .venv/Scripts/python.exe -m socialmedia_agent.evaluation.grounding_runner `
   --cases src/socialmedia_agent/evaluation/cases/grounding.json --runs 3
 .venv/Scripts/python.exe -m socialmedia_agent.evaluation.quality_runner `
-  --cases src/socialmedia_agent/evaluation/cases/quality.json --runs 3
+  --cases src/socialmedia_agent/evaluation/cases/quality.json `
+  --db-url sqlite:///data/sma_real.db --memory-url sqlite:///data/sma_real_memory.db `
+  --runs 3
 
 # 3) RAG 检索（确定性，无需密钥；CI 里跑的就是这条）
 .venv/Scripts/python.exe -m socialmedia_agent.evaluation.retrieval_runner `
