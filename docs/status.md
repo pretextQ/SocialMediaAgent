@@ -22,6 +22,7 @@
 | 测试 | `.venv/Scripts/python.exe -m pytest` -> 466 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
+| 一键启动 | `start.cmd`（demo → 8001 / real → 8000，前端 5173）。启动器有 AST 回归测试（`tests/unit/test_start_script.py`） |
 
 ## 3. 已完成阶段
 
@@ -288,6 +289,15 @@
       `TrendTopic` 契约同步扩展（可选字段，向后兼容），报告出现「上升 / 消退 / 持平」标注。
       仍为 `None` 的情况（无观测）被刻意与「持平」区分开。
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
+- [x] **一键启动器会静默连错代理端口**（[`issues.md`](issues.md) #17）：`start.ps1` 原先只在
+      「前端需要新启动」的 `else` 分支里导出 `VITE_API_TARGET`。若 5173 已被一个未带该变量的
+      Vite 占用，Vite 会回落到自己的 `8000` 默认值 —— 而 demo 模式后端在 8001，
+      **前端所有 `/api` 调用打到空端口**（HTML 壳仍返回 200，所以表现是「页面能打开但没数据」）。
+      修复：代理目标提升为**无条件顶层语句**并抽成纯函数 `Resolve-ViteApiTarget`；
+      复用端口时提示 `-Mode` 无效；汇总里打出真实 `proxy` 目标。
+      **新增 `tests/unit/test_start_script.py`（6 项）**：用 PowerShell 自身 **AST** 断言
+      「代理目标是无条件顶层语句」且「早于 `npm run dev`」，函数定义体另做 golden 快照。
+      **该回归已用 mutation 验证**：还原成 bug 形态 → 2 项立即变红，恢复后变绿。
 
 ### H. 前端（已实施）
 

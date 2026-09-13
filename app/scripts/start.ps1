@@ -51,6 +51,12 @@ $Python       = Join-Path $BackendDir '.venv\Scripts\python.exe'
 $BackendPort  = if ($Mode -eq "demo") { 8001 } else { 8000 }
 $FrontendPort = 5173
 $PageUrl      = "http://127.0.0.1:$FrontendPort"
+# Vite dev proxy target. Resolved unconditionally so it can never be skipped:
+# a Vite started without it falls back to its own 8000 default, and if this
+# launcher put the API on another port every /api call would hit a dead port.
+# An explicit VITE_API_TARGET from the caller still wins (see Resolve-ViteApiTarget).
+$ApiTarget    = Resolve-ViteApiTarget $env:VITE_API_TARGET $BackendPort
+$env:VITE_API_TARGET = $ApiTarget
 
 function Write-Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
 function Write-Ok($text)   { Write-Host "    $text" -ForegroundColor Green }
@@ -67,6 +73,13 @@ function Stop-Port([int]$Port) {
         Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
     }
     Start-Sleep -Milliseconds 800
+}
+
+function Resolve-ViteApiTarget([string]$Existing, [int]$Port) {
+    # The Vite dev proxy target must point at the port the API actually listens on.
+    # An explicit VITE_API_TARGET from the caller wins so custom setups keep working.
+    if ($Existing) { return $Existing }
+    return "http://127.0.0.1:$Port"
 }
 
 function Wait-Http([string]$Url, [int]$Seconds) {
@@ -115,6 +128,7 @@ if ($Restart) {
 Write-Step "starting backend (mode=$Mode, port=$BackendPort)"
 if (Test-PortListening $BackendPort) {
     Write-Hint "port $BackendPort already listening - reusing it (use -Restart to relaunch)"
+    Write-Hint "-Mode $Mode has NO effect on a reused backend; its database was fixed at ITS launch"
 } else {
     if ($Mode -eq 'demo') {
         $env:SMA_DB_URL = 'sqlite:///data/sma_demo.db'
@@ -128,11 +142,11 @@ if (Test-PortListening $BackendPort) {
 
 # ------------------------------------------------------------------ frontend
 if (-not $BackendOnly) {
-    Write-Step "starting frontend (port=$FrontendPort, proxy -> $BackendPort)"
+    Write-Step "frontend (port=$FrontendPort, proxy -> $ApiTarget)"
     if (Test-PortListening $FrontendPort) {
         Write-Hint "port $FrontendPort already listening - reusing it (use -Restart to relaunch)"
+        Write-Hint "a reused Vite keeps ITS OWN proxy target; if the page shows no data, run with -Restart"
     } else {
-        $env:VITE_API_TARGET = "http://127.0.0.1:$BackendPort"
         $frontendProc = Start-Process -FilePath cmd.exe `
             -ArgumentList @('/k', 'npm run dev') `
             -WorkingDirectory $FrontendDir -PassThru
@@ -166,6 +180,7 @@ Write-Host "================ SocialMediaAgent is up ================" -Foregroun
 Write-Host "  mode      : $Mode   (switch: start.cmd real  /  start.cmd demo -Restart)"
 Write-Host "  page      : $PageUrl"
 if (-not $BackendOnly) { Write-Host "  api docs  : http://127.0.0.1:$BackendPort/docs" }
+if (-not $BackendOnly) { Write-Host "  proxy     : $ApiTarget  (Vite dev proxy for /api)" }
 Write-Host "  where     : Dashboard -> Data -> Strategy -> Trends (demo has evolution signals)"
 Write-Host "  stop      : close the two new windows"
 Write-Host "=======================================================" -ForegroundColor Cyan

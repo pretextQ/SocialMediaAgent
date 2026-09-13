@@ -1,0 +1,38 @@
+### FUNCTION Write-Step
+function Write-Step($text) { Write-Host "==> $text" -ForegroundColor Cyan }
+### FUNCTION Write-Ok
+function Write-Ok($text)   { Write-Host "    $text" -ForegroundColor Green }
+### FUNCTION Write-Hint
+function Write-Hint($text) { Write-Host "    $text" -ForegroundColor Yellow }
+### FUNCTION Test-PortListening
+function Test-PortListening([int]$Port) {
+    return [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+}
+### FUNCTION Stop-Port
+function Stop-Port([int]$Port) {
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    foreach ($conn in $conns) {
+        Write-Hint "freeing port $Port (PID $($conn.OwningProcess))"
+        Stop-Process -Id $conn.OwningProcess -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 800
+}
+### FUNCTION Resolve-ViteApiTarget
+function Resolve-ViteApiTarget([string]$Existing, [int]$Port) {
+    # The Vite dev proxy target must point at the port the API actually listens on.
+    # An explicit VITE_API_TARGET from the caller wins so custom setups keep working.
+    if ($Existing) { return $Existing }
+    return "http://127.0.0.1:$Port"
+}
+### FUNCTION Wait-Http
+function Wait-Http([string]$Url, [int]$Seconds) {
+    $deadline = (Get-Date).AddSeconds($Seconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) { return $true }
+        } catch { }
+        Start-Sleep -Milliseconds 700
+    }
+    return $false
+}
