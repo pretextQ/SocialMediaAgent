@@ -21,7 +21,7 @@
 ## 2. 分层与依赖规则
 
 ```
-接入层    FastAPI / CLI / MCP Server / Scheduler
+接入层    前端 SPA(app/frontend) | FastAPI / CLI / MCP Server / Scheduler
    |
 Agent 层  LangGraph（3 个核心 Agent + 2 个内部能力）+ 9 个内部 Tool
    |
@@ -43,6 +43,8 @@ Agent 层  LangGraph（3 个核心 Agent + 2 个内部能力）+ 9 个内部 Too
 3. Agent 只能经 **Tool / Service** 取数，**禁止直接访问数据库**。
 4. 第三方能力只能出现在 `connectors/`；其余层禁止 import 第三方项目代码或引用其路径。
 5. **RAG 与 Memory 职责分离**：运营知识（通用方法论）与账号历史运营特征（本账号数据）分开存储。
+6. **前端只经 HTTP 与后端交互**：`app/frontend/` 不 import 任何 Python 代码、不直连数据库；
+   后端无数据写入端点，前端也不做写表单（见 [`plan-frontend.md`](plan-frontend.md)）。
 
 ---
 
@@ -73,6 +75,15 @@ app/backend/
 │   ├── evaluation/                # 工具选择评测：指标 / runner / case 集
 │   └── cli/                       # import_csv / ingest / seed_knowledge
 └── tests/                         # unit / integration / agent
+
+app/frontend/                      # 前端 SPA（Vite + React + TS + Tailwind；只经 HTTP 访问后端）
+├── vite.config.ts                 # /api dev proxy、代码分割、Vitest 配置
+├── src/api/                       # 接口封装（TS 类型逐字段对齐 pydantic 契约）
+├── src/components/                # 卡片 / 加载 / 错误 / 空态 / 报告渲染 / 评分仪表盘 / 来源徽标
+├── src/context/                   # 全局账号上下文（顶栏选择器）
+├── src/layouts/                   # 侧边导航 + 顶栏
+├── src/pages/                     # 9 个页面（对应 plan-frontend.md 第三节 P0~P8）
+└── src/test/                      # Vitest 冒烟测试
 ```
 
 ---
@@ -81,8 +92,9 @@ app/backend/
 
 ```
 +----------------------------- 接入层 -------------------------------+
+|  前端 SPA（app/frontend，只经 HTTP 访问）                          |
 |  FastAPI /api/v1/*      CLI(ingest, seed)     MCP Server(stdio)    |
-|  APScheduler（每周一 09:00 周报）                                   |
+|  APScheduler（每周一 09:00 周报；尚未挂到 API 启动流程）            |
 +---------------------------------+---------------------------------+
                                   |
 +---------------------------------v---------------------------------+
@@ -193,7 +205,8 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | `memory/` | 账号历史运营特征：存储 / 摘要 / TTL | 独立 DB，与 RAG 物理分离 |
 | `agents/tools/` | 9 个内部 Tool | Agent 取数的唯一通道 |
 | `agents/*` | 各 Agent 的 gather / analyze / report 节点、合成图与指令路由（`agents/router.py`） | 输出契约固定 + 有回归测试；路由保留确定性对照组 |
-| `api/` | FastAPI 应用工厂与路由 | 依赖注入 gateway / retriever |
+| `api/` | FastAPI 应用工厂与路由（含只读的 `system_status` / `reports` 端点） | 依赖注入 gateway / retriever |
+| `frontend/`（`app/frontend`） | 前端 SPA：9 个页面消费 HTTP API，含报告渲染与来源徽标 | 只经 HTTP，不 import Python；不做写操作 |
 | `evaluation/` | 评测：工具选择质量 + RAG 检索质量；指标、runner、case 集 | 用 RecordingRegistry **实测**调用序列；检索评测现场建内存知识库，确定性、无需密钥 |
 | `cli/` | 数据导入（`import_csv`）、采集（`ingest`）、知识库种子（`seed_knowledge`） | 支持流程可重复执行 |
 
@@ -294,5 +307,6 @@ Memory：写入 = 每次策略生成后沉淀账号特征；读取 = Agent 启�
 | [ADR-0002](adr/0002-llm-gateway.md) | LLM Gateway | 重新实现（借鉴熔断/重试/pydantic 校验思路） |
 | [ADR-0003](adr/0003-account-diagnosis.md) | 账号诊断 Agent | 重新实现；P5.5.1 起并入 `account_strategy` |
 | [ADR-0004](adr/0004-own-account-data.md) | 自有账号数据接入 | 浏览器自动化不采用；官方能力优先 + Python 重写只读适配器 |
+| [ADR-0005](adr/0005-frontend.md) | 前端技术选型与接入方式 | 重新实现：Vite + React + TS + Tailwind SPA（不采用 Jinja2 / Streamlit），只经 HTTP |
 
 第三方模块的逐项「移植候选」预判见 [`adr/README.md`](adr/README.md) 三线表。

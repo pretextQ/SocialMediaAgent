@@ -8,6 +8,7 @@
 | `eval_before_runs3.md` | 修复**前**的工具选择评测（rules 每例重复取数 3 次） |
 | `eval_after_runs3.md` | 修复**后**（重复调用 3.00 → 0.00） |
 | `eval_real_runs3.md` | **真实公开数据**上的工具选择评测（rules 100% vs llm 50%） |
+| `eval_real_flash_runs3.md` | 同一评测在 `deepseek-flash` 上**重跑复现**（llm 仍 50%，但 std 由 0 变为 **±41%**，暴露逐轮抖动） |
 | `eval_grounding_real.md` | 数据准确性：报告中的数字是否可溯源 |
 | `eval_quality_real.md` | 输出质量（LLM 评委，**分数不是 ground truth**） |
 | `eval_retrieval_k3.md` | RAG 检索质量（确定性，**不需要密钥**） |

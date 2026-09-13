@@ -1,6 +1,6 @@
 # SocialMediaAgent 项目状态
 
-> 更新：2026-09-12
+> 更新：2026-09-13
 > 本文是项目**唯一进度来源**：现状、DoD 对照、未完成清单、续作步骤。
 > 架构见 [`architecture.md`](architecture.md)；领域模型见 [`data-model.md`](data-model.md)；
 > 合规边界见 [`compliance.md`](compliance.md)；工程规范见 [`../AGENTS.md`](../AGENTS.md)。
@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **412 passed**（含 CI 门槛）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **412 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -20,7 +20,7 @@
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
 | 测试 | `.venv/Scripts/python.exe -m pytest` -> 412 passed |
-| CI | `.github/workflows/ci.yml`（GitHub Actions）+ `app/scripts/run_ci.ps1`（本地门槛） |
+| CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
 ## 3. 已完成阶段
@@ -37,7 +37,8 @@
 
 ## 4. 当前对外能力
 
-- **HTTP**：5 个查询端点 + 6 个 Agent 端点（见 [`api.md`](api.md)）
+- **HTTP**：**8 个查询端点**（accounts / contents / metrics / system-status / reports×2）+ **6 个 Agent 端点**（见 [`api.md`](api.md)）；Agent 响应均带 `source: llm|rules`
+- **前端**：`app/frontend/` 9 个页面（见第 7 节 H 组与 [`../app/frontend/README.md`](../app/frontend/README.md)）
 - **MCP**：7 个工具（stdio）
 - **CLI**：`import_csv`（手工导入真实数据，可用）、`ingest`（自动采集，阻塞）、`seed_knowledge`（知识库）
 
@@ -89,9 +90,22 @@
   （`limit=10`）。该指令**正则路由不到**（有单测钉住这一前提），是 LLM 路由增量价值的直接证据。
 - 「今天天气怎么样」→ 模型不选任何函数 → **回退正则** → 返回人类可读提示，**未崩溃**。
 
+**2026-09-13 端到端验证**（本机全新环境搭建后重跑）：
+
+- 全量测试 **412 passed**（后端）。
+- **6 个 Agent 端点全部走真实 LLM**（`deepseek-flash`）：`/diagnosis`、`/strategy`、`/contents/{id}/analysis`、
+  `/trends/analysis`、`/accounts/{id}/topic-recommendation`、`/titles/optimize` 均返回 `source="llm"`；
+  把 `LLM_BASE_URL` 指向不可达地址后，同样 6 个端点全部回退为 `source="rules"`——**回退路径也被实测覆盖**。
+- **M3 工具选择评测在 `deepseek-flash` 上重跑复现**（真实数据，`--runs 3`）：rules 完全匹配 **100% ± 0%**，
+  llm **50% ± 41%**，漏调一律是 `search_operation_knowledge`。证据见
+  [`eval/eval_real_flash_runs3.md`](eval/eval_real_flash_runs3.md)。
+  **注意**：原报告 `eval_real_runs3.md` 的 llm 标准差为 **0**，本次重跑得到 **±41%**（逐轮 50% → 0% → 100%）——
+  这正是本文件「std=0 不等于稳定」那条口径警示的实证。
+- **前端端到端**：经 Vite dev proxy 实测 `/system/status`、`/reports`、`/reports/{name}` 与 Agent 端点的 `source` 字段。
+
 **验证边界**：
 
-- Agent 端点的真实 LLM 覆盖：`/strategy`、`/contents/{id}/analysis`、`/titles/optimize` 均已验证；`/trends/analysis` 尚未。
+- Agent 端点的真实 LLM 覆盖：**6 个端点全部已验证**（含 `/trends/analysis`，见上节）。
 - 评测范围：**5 项已全部实现**（工具选择质量 / 数据准确性 / RAG 检索质量 / Prompt 回归 / 输出质量）。
   其中检索评测与 prompt 回归是**确定性**的、可直接进 CI；输出质量依赖 LLM 评委，**分数不是 ground truth**。
 - 评测数据有**两条来源**：**合成演示数据**（`source=synthetic`，仅链路验证，不可作评测依据）与
@@ -254,7 +268,14 @@
 
 ### H. 前端（已实施）
 
-- [ ] 见 [`plan-frontend.md`](plan-frontend.md)；建议先补后端 3 个小改动（`GET /reports`、`GET /system/status`、响应加 `source: llm|rules`）
+- [x] **技术选型**：Vite 6 + React 18 + TypeScript + Tailwind CSS 4 + Recharts（依据 [`plan-frontend.md`](plan-frontend.md) 第二节）
+- [x] **9 个页面全部落地**（对应计划 P0~P8）：工作台 / 数据浏览 / 账号诊断与策略 / 内容分析 /
+      趋势分析 / 选题推荐 / 标题优化 / 运营周报 / 系统状态
+- [x] **后端配套 3 项**（计划第五节）：`GET /reports`、`GET /system/status`、Agent 响应加 `source: llm|rules`
+- [x] **验证**：`npm run build` 通过（tsc + vite）；`npm test` **17 passed**；经 Vite 代理端到端实测
+- [ ] 前端**未接入 CI**（当前 remote 为 Gitee，`.github/workflows/ci.yml` 不自动触发）
+- [ ] 有意偏离计划第七节「明确不做前端测试框架」：因根 [`AGENTS.md`](../AGENTS.md) 要求新增功能必须有测试，
+      加入了 17 项 Vitest 冒烟测试（只断言路由可渲染 + markdown/仪表盘输出），偏差已记在 `app/frontend/README.md`
 
 ---
 
@@ -267,6 +288,8 @@
 | 工具 / 路由决策 | `account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策（**默认关闭**、失败回退确定性路径）。工具选择质量已有评测（M3），但**用例仍为合成演示账号**，LLM 侧结论需真实数据 |
 | 无认证 / 无多租户 | 当前定位为**单用户本地工具**，不适用于多用户或企业场景 |
 | 合规 | 采集通道涉及平台 ToS 与非商用许可，见 [`compliance.md`](compliance.md) |
+| 周报调度未接线 | `services/scheduler.py` 的 APScheduler **未挂到 API 启动流程**；周报需手动触发 `generate_all_weekly_reports`。`SMA_REPORT_DIR` 已保证写入与读取同源 |
+| CI 未生效 | remote 为 Gitee，GitHub Actions 配置不会触发；前后端均只能人工执行测试 |
 
 ---
 
@@ -274,10 +297,14 @@
 
 1. ~~C 组 Tool Calling~~ / ~~A 组死代码清理~~ —— **均已完成**（见第 7 节 C 组与 A 组）。
 2. **填入真实数据（约 30 条）** —— 用 `import_csv` 手工导入；自动采集可改走官方 API / 自有账号只读适配器（更合规，见 ADR-0004）。
-   **这是当前唯一卡住「评测结论可信度」的事**：LLM 侧数字目前都长在合成演示账号上。
-3. **E 组 Evaluation 剩余维度**（RAG 检索质量 / 输出质量 / Prompt 回归）+ 接入 CI 强制门槛；可选：路由正确率评测（B2）。
-4. **F 组部署与演示**（docker-compose / 架构图 / 演示脚本）。
-5. **H 前端**（可选）。
+   **现状**：M3 已在真实数据上重跑（`eval_real_runs3.md` 与 `eval_real_flash_runs3.md`），LLM 侧数字**不再只长在合成数据上**；
+   但样本是 **19 个账号各 1 条内容**，仍**不能支撑账号内趋势分析**，也支撑不了账号级结论的统计显著性。
+3. ~~E 组 Evaluation 剩余维度~~ —— **5/5 已全部实现**；**仍缺「接入 CI 强制门槛」**。
+   且当前 remote 为 Gitee，GitHub Actions **不会触发**，需接 Gitee Go 或先把仓库镜像到 GitHub。
+4. **F 组部署与演示**（docker-compose / 架构图 / 演示脚本）—— **未开始**。
+5. ~~H 前端~~ —— **已完成**（见第 7 节 H 组）。
+6. **企业化前置**（若要从「单用户本地工具」转为可对外交付）：认证 / 多租户 / 可观测 / 成本治理 /
+   部署产物 / 替换采集通道。完整缺口清单见 [`compliance.md`](compliance.md) 第 6 节与第 8 节风险表。
 
 > 严格遵循 [`AGENTS.md`](../AGENTS.md)：每次一个小任务 -> 先写测试（TDD）-> 跑测试 -> `git diff` -> commit + push。
 

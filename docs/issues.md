@@ -36,6 +36,9 @@
 | 10 | 授权「编造数据」时的边界处理 | 工程判断 | 明确「能做」与「该怎么做」的差别 |
 | 11 | 组合出的能力重复取数：评测指标把 bug 当成了「基线」 | 度量 / 组合 | 用 `RecordingRegistry` 度量**实际**调用序列 |
 | 12 | 接 Alembic 踩的三个坑（GBK 读 ini / 自动生成漏 import / stamp head 吞掉迁移） | 迁移 / 环境 | **测试先红** |
+| 13 | 装了两份 vite 导致同名类型不兼容 | 依赖管理 | `tsc` 报错里的完整路径 |
+| 14 | 配置项只被「读侧」使用：写读不同源 | 配置 / 接线 | 逐条追「这个配置被谁用了」 |
+| 15 | 文档再次跑在实现前面（README 三处过时 + status.md 自相矛盾） | 文档纪律 | 文档 ↔ 代码 ↔ 实测 **对读** |
 
 ---
 
@@ -314,6 +317,91 @@ account_strategy 只额外取 performance / history / knowledge。
 
 ---
 
+## 13. 装了两份 vite：同名类型不兼容
+
+**现象**：新增前端后 `npm run build`（`tsc --noEmit && vite build`）失败，报错指向 `vite.config.ts`：
+
+```
+Type Plugin (from node_modules/vite/dist/node/index) is not assignable to
+type Plugin (from node_modules/vitest/node_modules/vite/dist/node/index)
+```
+
+**怎么发现的**：不是靠猜，是 `tsc` 直接给出的完整类型链。
+关键线索是路径里出现了**两处 vite**：`node_modules/vite` 与 `node_modules/vitest/node_modules/vite`。
+
+**根因**：`vitest@2` 的 peer 依赖是 `vite ^5`，而项目装的是 `vite ^6`。npm 无法 dedupe，
+于是**在 vitest 下嵌套安装了第二份 vite 5**。`vitest/config` 的 `defineConfig` 用的是嵌套那份的插件类型，
+而 `@vitejs/plugin-react` 用的是顶层 vite 6 的类型——两套 `Plugin` 类型名义相同、结构不兼容。
+
+**修复**：把 `vitest` 升到 **v3**（peer 支持 `vite ^5 || ^6`），npm 随即复用顶层 vite，嵌套目录消失，类型冲突一并消失：
+
+```
+node_modules/vitest/node_modules/vite   -> 不存在
+vite 6.4.3 / vitest 3.2.7
+```
+
+**可迁移的教训**：
+
+- **「同名类型不兼容」几乎总是「装了两份」**。看错误信息里的完整路径，比读类型定义快得多。
+- 引入新依赖时要看它的 **peer 依赖范围**是否与项目现有版本重叠；不重叠就会嵌套安装。
+- 这类问题不是代码 bug，是**依赖图问题**；用 `as any` 去压制只会把它藏起来。
+
+---
+
+## 14. 配置项只被「读侧」使用：写读不同源
+
+**现象**：为前端新增 `GET /reports` 后，周报页能列出文件，但**永远读不到调度器写出的周报**。
+
+**怎么发现的**：核对交付时逐条追「这个配置项被谁用了」。结果 `SMA_REPORT_DIR` 只有
+`reports.py` 与 `system_status.py` 两个**读侧**在用；而**写侧** `generate_all_weekly_reports(...)` 与
+`create_weekly_report_scheduler(...)` 仍要求调用方显式传 `report_dir`——两者**没有任何绑定关系**。
+
+**根因**：新增端点时只实现了「读」，把「写」的目录来源留在调用方，于是存在两条各自独立、
+默认值可能不同的路径。这不是崩溃型 bug，而是**接线缺失**：单次演示中功能看起来完全正常。
+
+**修复**：两个函数的 `report_dir` 改为 `str | None = None`，为 `None` 时回落 `Settings.report_dir`；
+调用方行为不变（向后兼容），并补两条测试钉住默认行为。
+
+**可迁移的教训**：
+
+- **新增「读取某目录」的能力时，必须问：谁在写这个目录？两边是同一个值吗？**
+  只写读侧会得到一个「不报错但永远为空」的功能——这类缺陷最容易被漏掉。
+- 配置项的**每个使用点都要能被数出来**。只有一个使用点的配置项，通常意味着漏了另一半。
+
+---
+
+## 15. 文档再次跑在实现前面（README 三处过时 + status.md 自相矛盾）
+
+**现象**：通读 `docs/` 时发现状态描述与代码不符：
+
+| 文档声称 | 实际 |
+| --- | --- |
+| README「**无数据库迁移**，未接 Alembic」 | 早已接入（迁移 + 既有库自动收养 + 漂移守护测试） |
+| README「P6 评估套件**其余 4 项尚未开发**」 | 5/5 全部实现 |
+| README「**前端未实施**」 | 已实施 |
+| status.md「P6 — 已实现 **1 项**；其余 4 项未开始」 | **同一份文档**第 7 节 E 组写着「5 项评估全部实现」 |
+| status.md「测试 317 passed」 | 实测 **412 passed** |
+
+**怎么发现的**：不是靠某一条报错，而是**交叉阅读**——把 `docs/` 与代码/实测逐条对照，
+并且**同一份文档内部对读**（status.md 第 5 节与第 7 节互相矛盾）。
+
+**根因**：这正是本文件 **#9 记录过的同一个问题**——进度型信息被写在多个地方。
+#9 的修复是把「承诺」与「现状」拆开，但没有阻止「同一事实在不同文档各写一遍」；
+README 的「已知限制」与 status.md 的「阶段对照」就是两个副本。
+
+**修复**：本次一并更正 README 三处、status.md 两处，并把「前端已实施」同步到
+`architecture.md`（分层图 / 目录 / 模块职责）、`api.md`（新端点与 `source` 语义）、
+`plan-frontend.md`（第八节实施结果）、`adr/0005-frontend.md`（决策留痕）、`eval/README.md`（新证据）。
+
+**可迁移的教训**：
+
+- **「文档对不对」不能靠读一份判断，要靠对读**：文档 ↔ 代码、文档 ↔ 实测、文档 ↔ 文档。
+- 「已完成 / 未完成」这类状态**必须只有一个物理位置**；只要允许副本存在，副本一定会腐烂。
+- 这条与 #9 是**同一条教训的第二次复发**——说明「加一条规则」不够，
+  要能**机械化检查**（例如让测试断言文档中引用的测试数与实际一致）才可能真正防住。
+
+---
+
 ## 附录：环境相关问题（非项目缺陷，供参考）
 
 以下问题由**执行环境**导致，与项目代码无关，但排查过程有参考价值：
@@ -323,6 +411,10 @@ account_strategy 只额外取 performance / history / knowledge。
 | 154 个测试 `PermissionError: [WinError 5]` | 受限沙箱禁止**枚举/删除** pytest 创建的临时子目录 | 放宽沙箱权限后重试；**只用工作区内的 `--basetemp` 无效**——pytest 在 session 结束仍要枚举该目录（已实测） |
 | `git push` 报 `schannel: SEC_E_NO_CREDENTIALS` | 沙箱阻止进程访问 Windows 凭证库 | 在放宽权限后重试 |
 | 控制台中文乱码 | 管道输出时 Python 用 GBK 编码，消费端按 UTF-8 解码 | 设置 `PYTHONIOENCODING=utf-8` |
+| `pip install` 报 `from versions: none` / 下载仅 17 kB/s | 官方 PyPI 在本机极慢且被间歇拒绝 | 换国内镜像：**阿里云实测 3.7 MB/s**（PyPI 17 kB/s，清华 824 kB/s） |
+| `python -m venv` 的 ensurepip 失败、`No module named pip` | 受限沙箱禁止 `CreatePipe`，且 `tempfile.mkdtemp` 建的目录**不可访问** | 放宽权限后用标准 `venv` 重建；临时可手工植入 pip 绕过 |
+| `npm` 警告 `install-scripts ... esbuild` 未执行 | npm 11 的 `allowScripts` 安全策略默认拦截 postinstall | **虚惊**：平台二进制 `@esbuild/win32-x64/esbuild.exe` 已随 optionalDependency 装好，构建正常 |
+| Vite dev server 起来了，但 `127.0.0.1:5173` 连接被拒 | Windows 上 `localhost` 优先解析为 `::1`，Vite 只绑了 IPv6 | 在 `vite.config.ts` 显式 `server.host: 127.0.0.1` |
 
 **教训**：要把「**环境问题**」与「**代码问题**」明确区分——133 个红色错误看起来像代码崩了，实际只是沙箱限制。分不清这两者会导致误修。
 

@@ -6,6 +6,7 @@
 > **结论以各阶段正式 ADR 为准**，本表仅作预判与检索入口。
 > **P4 补充（2026-08-24）**：趋势分析 / 选题推荐在 P4 为**新增实现**（基于自建 Topic 数据层与 RAG，见 `agents/trend_analysis/`、`agents/topic_recommendation/`），MatrixFlow 无对应模块，不涉及移植候选，无需额外 ADR。
 > **P5 补充（2026-08-24）**：自有账号数据接入经 **ADR-0004** 决策——浏览器自动化路径（登录态/发布/反检测）不采用；自有账号只读数据以平台官方能力优先 + Python 重写适配器，纳入 `PlatformConnector` 边界（`connectors/matrixflow_ref/`），发布写操作另行评估。
+> **P7 补充（2026-09-13）**：前端经 **ADR-0005** 决策——矩阵流（MatrixFlow）Electron 渲染层与发布 UI **不采用**；前端在 `app/frontend/` **重新实现**（Vite + React + TS + Tailwind），**只经 HTTP** 接入，不做写操作。Jinja2 / Streamlit 作为备选方案一并评估后不采用。
 
 ## 决策口径
 
