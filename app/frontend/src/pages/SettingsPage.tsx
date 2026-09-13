@@ -66,6 +66,16 @@ export function SettingsPage() {
                       : '未配置（仅落盘）'
                   }
                 />
+                <Row
+                  label="周报调度"
+                  value={
+                    data.scheduler_running
+                      ? '运行中（每周一 09:00）'
+                      : data.scheduler_enabled
+                        ? '已开启但未运行'
+                        : '未开启（手动触发）'
+                  }
+                />
               </dl>
               {data.topic_count === 0 && (
                 <p className="mt-3 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700">

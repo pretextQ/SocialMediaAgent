@@ -119,6 +119,9 @@ def test_system_status_aggregates_counts_and_paths(tmp_path):
     assert body["database_url"] == db.url
     # 未配置 SMA_NOTIFY_WEBHOOK_URL -> 默认不投递
     assert body["notify_channels"] == []
+    # 未开启 SMA_SCHEDULER_ENABLED -> 默认不起调度器
+    assert body["scheduler_enabled"] is False
+    assert body["scheduler_running"] is False
 
 
 def test_system_status_without_key_reports_not_configured(tmp_path):

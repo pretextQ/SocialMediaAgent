@@ -255,4 +255,7 @@ export interface SystemStatus {
   report_count: number
   /** 已启用的报告投递通道；空数组表示「只落盘、不投递」（默认） */
   notify_channels: string[]
+  /** 周报调度开关（配置）；running 反映本进程是否真有调度器在跑 */
+  scheduler_enabled: boolean
+  scheduler_running: boolean
 }

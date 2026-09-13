@@ -65,4 +65,6 @@ export const STATUS: SystemStatus = {
   report_dir: 'data/reports',
   report_count: 0,
   notify_channels: [],
+  scheduler_enabled: false,
+  scheduler_running: false,
 }

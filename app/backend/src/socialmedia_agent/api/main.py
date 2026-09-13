@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from socialmedia_agent.config import get_settings
 from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.llm.factory import build_gateway, build_role_gateway
@@ -22,6 +23,7 @@ from socialmedia_agent.llm.gateway import LLMGateway
 from socialmedia_agent.memory.store import SQLAlchemyMemoryStore
 from socialmedia_agent.rag.knowledge import build_knowledge_retriever
 from socialmedia_agent.rag.retriever import Retriever
+from socialmedia_agent.services.scheduler import create_weekly_report_scheduler
 
 from .routers import (
     accounts,
@@ -51,8 +53,25 @@ def create_app(
     async def lifespan(_app: FastAPI):
         # 生产入口用 Alembic 迁移建表/升级（测试与临时库仍可用 Database.create_all）
         upgrade_to_head(db.url)
+
+        # 周报调度：**默认关闭**（SMA_SCHEDULER_ENABLED）。开启时才起后台线程，
+        # 避免本地工具「启动就悄悄跑调度」以及测试被 lifespan 的线程拖脆。
+        scheduler = None
+        if get_settings().scheduler_enabled:
+            scheduler = create_weekly_report_scheduler(
+                db, memory_store, gateway=gateway
+            )
+            scheduler.start()
+            app.state.scheduler = scheduler
+
         yield
-        # 关闭时释放 Memory store 的 session 与引擎（此前从不释放）
+
+        # 关闭时先停调度器（否则线程会在 Memory store 被 dispose 后仍持有它）
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+            app.state.scheduler = None
+
+        # 释放 Memory store 的 session 与引擎（此前从不释放）
         store = getattr(app.state, "memory_store", None)
         if store is not None:
             store.dispose()

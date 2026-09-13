@@ -53,6 +53,9 @@ class SystemStatusResponse(BaseModel):
     report_count: int
     # 已启用的报告投递通道（未配置时为空列表 —— 默认不投递）
     notify_channels: list[str]
+    # 周报调度：enabled 来自配置；running 反映本进程是否真的有调度器在跑
+    scheduler_enabled: bool
+    scheduler_running: bool
 
 
 def _count_report_files(report_dir: str) -> int:
@@ -103,4 +106,6 @@ def get_system_status(
         report_dir=settings.report_dir,
         report_count=_count_report_files(settings.report_dir),
         notify_channels=build_notifier_registry(settings).channels,
+        scheduler_enabled=settings.scheduler_enabled,
+        scheduler_running=getattr(request.app.state, "scheduler", None) is not None,
     )

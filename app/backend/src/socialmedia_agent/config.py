@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # 报告投递通道（可选）：配置了 webhook URL 才注册该通道；留空=只有文件落盘
     notify_webhook_url: str | None = Field(default=None, alias="SMA_NOTIFY_WEBHOOK_URL")
 
+    # 周报调度开关。**默认关闭**：本地单用户工具不应在启动时悄悄起后台线程，
+    # 也不该让测试因为 lifespan 起了调度器而变脆。需要定时生成周报时显式开启。
+    scheduler_enabled: bool = Field(default=False, alias="SMA_SCHEDULER_ENABLED")
+
     # 各 Agent 角色的模型覆盖（可选）。借鉴 MediaRadar「默认模型 + 角色独立配置」的做法：
     # 推理重的角色可用强模型，轻量角色可用更快/更便宜的模型；未配置的角色回落 llm_model。
     llm_model_account_strategy: str | None = Field(

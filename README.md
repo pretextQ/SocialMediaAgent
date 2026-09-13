@@ -361,7 +361,7 @@ Agent 只经 **Tool** 取数，不直接访问数据库、也不依赖第三方�
 - **自动采集链路阻塞**：`.venv-crawler` 为空壳，`ingest` 尚未真机跑通。真实数据可用 `import-csv` 手工导入（见「快速开始」6.1）。
 - **数据库迁移已接 Alembic**：`migrations/` 提供基线 + 增量迁移，生产入口（API 启动 / `import_csv` / `ingest`）自动 `upgrade head`，既有库自动收养；测试与临时库仍用 `Base.metadata.create_all`，两者一致性由 `tests/unit/test_migrations.py` 守护。
 - **前端已实施**：`app/frontend/` 覆盖计划中的全部 9 个页面（对应 `plan-frontend.md` 的 F1~F4）；`npm run build` 与 `npm test`（17 项）均通过。前端未接入 CI 门槛，需手动执行。
-- **周报写入与调度未接线**：`GET /reports` 已暴露，读的是 `SMA_REPORT_DIR`；周报生成器省略 `report_dir` 时也回落到同一目录（写读同源）。但 `services/scheduler.py` 的 APScheduler 调度器**尚未挂到 API 启动流程**，周报目前需手动触发 `generate_all_weekly_reports` 或自行接入调度。
+- **周报调度默认关闭**：`GET /reports` 读 `SMA_REPORT_DIR`，生成器省略 `report_dir` 时回落到同一目录（写读同源）；APScheduler 已接进 API 生命周期，但需显式设置 `SMA_SCHEDULER_ENABLED=1` 才启动（默认关闭，避免本地工具「启动就跑调度」）。报告投递支持 webhook（`SMA_NOTIFY_WEBHOOK_URL`，留空则只落盘）。
 
 > 已完成能力的真实性：LLM 链路已于 2026-09-12 用 DeepSeek `deepseek-flash` 真实调用验证（`/strategy`、`/titles/optimize`），
 > 输出确实引用了数据库中的指标与话题事实。
