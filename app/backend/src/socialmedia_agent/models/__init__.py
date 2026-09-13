@@ -2,10 +2,11 @@
 
 from socialmedia_agent.database.base import Base
 
-from . import account, content, metric, topic
+from . import account, content, metric, observation, topic
 from .account import AccountModel
 from .content import ContentModel
 from .metric import MetricModel
+from .observation import MetricObservationModel, TopicObservationModel
 from .topic import TopicModel
 
 __all__ = [
@@ -13,5 +14,7 @@ __all__ = [
     "AccountModel",
     "ContentModel",
     "MetricModel",
+    "MetricObservationModel",
     "TopicModel",
+    "TopicObservationModel",
 ]

@@ -87,6 +87,27 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 
 > `platforms` 在 DB 中是 JSON 数组，因此按平台 / 时间过滤在 **Python 侧**完成（避免方言差异）。
 
+### 4.5 MetricObservation（指标观测，时间序列）
+
+决策见 [ADR-0006](adr/0006-time-series.md)。字段与 `Metric` 对齐，但**只追加**，以 `observed_at` 区分多次观测。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `content_id` / `account_id` | `str?` | **至少锚定其一**（validator 强制） |
+| `platform` / `metric_type` | | 同 `Metric` |
+| `value` | `Decimal` | 该次观测的值 |
+| `observed_at` | `datetime` | **该次观测的时间**（UTC），序列的排序键 |
+| `source` / `raw_value` | | 同 `Metric` |
+
+### 4.6 TopicObservation（话题观测，时间序列）
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `keyword` | `str` | 话题关键词 |
+| `platforms` | `list[Platform]` | 该次观测的覆盖平台 |
+| `post_count` | `int` | 该次观测的发布量 |
+| `observed_at` | `datetime` | **该次观测的时间**（UTC），序列的排序键 |
+
 ## 5. 数据库表与约束
 
 | 表 | 关键约束 |
@@ -95,6 +116,8 @@ canonical_id = f"{platform.value}:{platform_id}"       # 例：bilibili:90001
 | `contents` | `canonical_id` UNIQUE；`account_id` FK -> `accounts.canonical_id` |
 | `metrics` | `content_id` FK -> `contents.canonical_id`；`account_id` FK -> `accounts.canonical_id`；`value` `Numeric(20,4)`；`captured_at` 索引 |
 | `topics` | `keyword` 索引；`platforms` / `sentiment` 为 JSON |
+| `metric_observations` | 只追加时间序列；FK 同 `metrics`；`observed_at` / `metric_type` / `platform` 与锚点均索引；**主键 = 业务键哈希**（见第 6 节） |
+| `topic_observations` | 只追加时间序列；`keyword` / `observed_at` 索引；同样以业务键哈希为主键 |
 | `memory_entries` | **独立库**（`MemoryBase`，与核心库 Base 分离）：`account_id` / `category` 索引，`expires_at` 支持 TTL |
 
 SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。**建表与变更走 Alembic 迁移**（`app/backend/migrations/`，
@@ -109,6 +132,11 @@ SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。**建表与变更走 Ale
 | Content | `canonical_id` | 覆盖更新标题 / 正文 / 发布时间 / 元数据 |
 | Metric | `(content_id, account_id, metric_type, source)` | **最新快照**：同一锚点同一指标重复采集时更新为最新值 |
 | Topic | `keyword` | 覆盖更新热度 / 时间窗口 / 摘要 |
+| MetricObservation | `sha256(content_id\|account_id\|metric_type\|source\|observed_at)[:32]` | **只追加**：同一业务键重复写入收敛为一条；不同 `observed_at` 是新观测 |
+| TopicObservation | `sha256(keyword\|observed_at)[:32]` | 同上 |
+
+> 观测表用**确定性主键**而不是 UniqueConstraint：SQLite 下 NULL 在唯一约束中互不相等，
+> 而 `content_id` / `account_id` 可空，组合唯一键会漏掉 NULL 参与的去重（见 ADR-0006）。
 
 数据入库链路（两条路径共用 `RawContent -> Normalizer -> Repository`）：
 
@@ -121,5 +149,9 @@ SQLite 连接建立时开启 `PRAGMA foreign_keys=ON`。**建表与变更走 Ale
 
 ## 7. 已知语义问题
 
-- **Metric 是「最新快照」而不是时间序列**：同一指标的历史值会被覆盖，当前无法回答「某指标随时间如何变化」。这会影响趋势 / 历史分析的真实性，尚未决策（见 [`status.md`](status.md) 技术债）。
+- ~~**Metric 是「最新快照」而不是时间序列**~~ —— **已决策并落地**（[ADR-0006](adr/0006-time-series.md)）：
+  `metrics` / `topics` **保持**「最新快照」语义不变（既有 API / MCP / Tool / 评测零改动），
+  新增 `metric_observations` / `topic_observations` 两张**只追加**观测表承担时间序列。
+  **仍存在的限制**：观测表目前**只有写入方**（`import_csv`），读取方（话题演变 / 指标序列分析）尚未落地；
+  且不传 `--observed-at` 时每次导入都会追加一个观测点——这是时间序列的既定语义，需可复现时必须显式传该参数。
 - `Topic.platforms` 的 JSON 存储使平台过滤无法下推到 SQL，数据量大时需重新设计。

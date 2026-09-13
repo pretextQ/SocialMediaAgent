@@ -9,6 +9,13 @@
 数据流（与采集链路完全一致，不绕过 Normalizer）：
     CSV 行 -> RawContent -> RawToDomainMapper -> Repository.upsert（幂等）
 
+**同时写入只追加的时间序列**（见 docs/adr/0006-time-series.md）：
+    快照表 metrics/topics 保持「最新值」语义不变；
+    观测表 metric_observations/topic_observations 每次导入追加一个观测点。
+    观测的 id 由业务键确定性派生，因此**同一 observed_at 重复导入会收敛为同一条**；
+    不指定 --observed-at 时用数据自带时间（指标为采集时刻），重复导入会产生多个观测点——
+    这正是时间序列的语义。要可复现，请显式传 --observed-at。
+
 来源标注：所有由本命令写入的指标 source=manual，与采集数据可区分、可审计。
 """
 
@@ -26,6 +33,7 @@ from socialmedia_agent.connectors.mapper import RawToDomainMapper
 from socialmedia_agent.database.migrations import upgrade_to_head
 from socialmedia_agent.database.session import Database
 from socialmedia_agent.domain.enums import ContentType, MetricSource, MetricType, Platform
+from socialmedia_agent.domain.observation import MetricObservation, TopicObservation
 from socialmedia_agent.domain.topic import Topic
 from socialmedia_agent.logging_config import setup_logging
 from socialmedia_agent.normalizers import platform_from_code
@@ -33,6 +41,10 @@ from socialmedia_agent.normalizers.time import DefaultTimeNormalizer
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.observation_repo import (
+    MetricObservationRepository,
+    TopicObservationRepository,
+)
 from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 METRIC_COLUMNS: dict[str, MetricType] = {
@@ -73,6 +85,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=MetricSource.MANUAL.value,
         choices=[m.value for m in MetricSource],
         help=f"数据来源标注（默认 {MetricSource.MANUAL.value}）",
+    )
+    parser.add_argument(
+        "--observed-at",
+        default=None,
+        help=(
+            "显式指定本批次的观测时间（时间序列用）。"
+            "同一批次重复导入会收敛为同一条观测；不指定则用数据自带时间"
+        ),
     )
     return parser
 
@@ -248,6 +268,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[import-csv] 话题数据错误: {exc}", file=sys.stderr)
             return 1
 
+    observed_at_override: datetime | None = None
+    if args.observed_at:
+        observed_at_override = _TIME.normalize(args.observed_at)
+        if observed_at_override is None:
+            print(
+                f"[import-csv] --observed-at 无法解析: {args.observed_at!r}",
+                file=sys.stderr,
+            )
+            return 1
+
     if args.dry_run:
         print(
             f"[import-csv] 校验通过（dry-run，未写库）："
@@ -265,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         content_repo = ContentRepository(session)
         metric_repo = MetricRepository(session)
         topic_repo = TopicRepository(session)
+        metric_obs_repo = MetricObservationRepository(session)
+        topic_obs_repo = TopicObservationRepository(session)
         for raw in raws:
             account, content, metric_items = mapper.map(raw)
             if account is not None:
@@ -274,9 +306,32 @@ def main(argv: list[str] | None = None) -> int:
             contents += 1
             for metric in metric_items:
                 metric_repo.upsert(metric)
+                # 时间序列：追加一个观测点（id 由业务键确定性派生，同 observed_at 收敛）
+                metric_obs_repo.record(
+                    MetricObservation(
+                        content_id=metric.content_id,
+                        account_id=metric.account_id,
+                        platform=metric.platform,
+                        metric_type=metric.metric_type,
+                        value=metric.value,
+                        observed_at=observed_at_override or metric.captured_at,
+                        source=metric.source,
+                        raw_value=metric.raw_value,
+                    )
+                )
                 metrics += 1
         for topic in topics:
             topic_repo.upsert(topic)
+            topic_obs_repo.record(
+                TopicObservation(
+                    keyword=topic.keyword,
+                    platforms=topic.platforms,
+                    post_count=topic.post_count,
+                    observed_at=observed_at_override
+                    or topic.last_seen
+                    or datetime.now(timezone.utc),
+                )
+            )
 
     # 汇报库内实际数量（去重后），避免把"处理次数"误读成"新增条数"
     with database.session() as session:
@@ -284,11 +339,15 @@ def main(argv: list[str] | None = None) -> int:
         stored_contents = len(ContentRepository(session).list(limit=10**9))
         stored_metrics = len(MetricRepository(session).list(limit=10**9))
         stored_topics = len(TopicRepository(session).list(limit=10**9))
+        stored_metric_obs = MetricObservationRepository(session).count()
+        stored_topic_obs = TopicObservationRepository(session).count()
 
     print(
         f"[import-csv] 完成 处理行数={len(raws)} | "
         f"库内 accounts={stored_accounts} contents={stored_contents} "
         f"metrics={stored_metrics} topics={stored_topics} | "
+        f"观测 metric_observations={stored_metric_obs} "
+        f"topic_observations={stored_topic_obs} | "
         f"source={source.value} -> {database.url}"
     )
     return 0

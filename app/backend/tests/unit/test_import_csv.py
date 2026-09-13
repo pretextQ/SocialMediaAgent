@@ -18,6 +18,10 @@ from socialmedia_agent.domain.enums import MetricSource, MetricType
 from socialmedia_agent.repositories.account_repo import AccountRepository
 from socialmedia_agent.repositories.content_repo import ContentRepository
 from socialmedia_agent.repositories.metric_repo import MetricRepository
+from socialmedia_agent.repositories.observation_repo import (
+    MetricObservationRepository,
+    TopicObservationRepository,
+)
 from socialmedia_agent.repositories.topic_repo import TopicRepository
 
 HEADER = [
@@ -295,4 +299,110 @@ def test_import_topics_unknown_platform_writes_nothing(tmp_path):
     assert main(["--input", str(csv_path), "--topics", str(topics_path),
                  "--db-url", f"sqlite:///{db_file}"]) == 1
 
+    assert not db_file.exists()
+
+
+# ---------------------------------------------------------------------------
+# 时间序列观测（docs/adr/0006-time-series.md）
+# 快照表保持「最新值」语义，观测表每次导入追加一个观测点。
+# ---------------------------------------------------------------------------
+
+
+def _obs_db(tmp_path, name="obs.db") -> Database:
+    return Database(url=f"sqlite:///{tmp_path / name}")
+
+
+def test_import_csv_records_metric_observations(tmp_path):
+    """导入同时写入观测表：8 个指标 -> 8 条观测（与快照一一对应）。"""
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_url = f"sqlite:///{tmp_path / 'obs1.db'}"
+
+    assert main(["--input", str(csv_path), "--db-url", db_url]) == 0
+
+    database = _obs_db(tmp_path, "obs1.db")
+    with database.session() as session:
+        assert MetricObservationRepository(session).count() == 8
+        # 快照表语义不变
+        assert len(MetricRepository(session).list()) == 8
+
+
+def test_import_csv_observed_at_converges_observations(tmp_path):
+    """显式同一 --observed-at 重复导入：快照与观测都不翻倍（可复现）。"""
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_url = f"sqlite:///{tmp_path / 'obs2.db'}"
+    stamp = "2026-09-01T00:00:00Z"
+
+    assert main(["--input", str(csv_path), "--db-url", db_url, "--observed-at", stamp]) == 0
+    assert main(["--input", str(csv_path), "--db-url", db_url, "--observed-at", stamp]) == 0
+
+    database = _obs_db(tmp_path, "obs2.db")
+    with database.session() as session:
+        assert MetricObservationRepository(session).count() == 8
+        assert len(MetricRepository(session).list()) == 8
+
+
+def test_import_csv_different_observed_at_appends_observations(tmp_path):
+    """不同 --observed-at：观测追加成序列，快照仍只有 8 条。"""
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_url = f"sqlite:///{tmp_path / 'obs3.db'}"
+
+    assert main(["--input", str(csv_path), "--db-url", db_url,
+                 "--observed-at", "2026-09-01T00:00:00Z"]) == 0
+    assert main(["--input", str(csv_path), "--db-url", db_url,
+                 "--observed-at", "2026-09-08T00:00:00Z"]) == 0
+
+    database = _obs_db(tmp_path, "obs3.db")
+    with database.session() as session:
+        assert MetricObservationRepository(session).count() == 16
+        assert len(MetricRepository(session).list()) == 8
+
+        series = MetricObservationRepository(session).series(
+            content_id="bilibili:90001", metric_type="views"
+        )
+        assert [str(o.value) for o in series] == ["12000.0000", "12000.0000"]
+
+
+def test_import_csv_without_observed_at_appends_each_run(tmp_path):
+    """不传 --observed-at 时用数据自带采集时刻，**每次导入都会追加** ——
+
+    这是时间序列的既定语义（你确实又观测了一次），因此必须显式钉住，
+    避免有人误以为观测表也「重复导入不翻倍」。
+    """
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_url = f"sqlite:///{tmp_path / 'obs4.db'}"
+
+    assert main(["--input", str(csv_path), "--db-url", db_url]) == 0
+    assert main(["--input", str(csv_path), "--db-url", db_url]) == 0
+
+    database = _obs_db(tmp_path, "obs4.db")
+    with database.session() as session:
+        assert MetricObservationRepository(session).count() == 16
+        assert len(MetricRepository(session).list()) == 8  # 快照仍幂等
+
+
+def test_import_csv_records_topic_observations(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    topics_path = write_topic_csv(tmp_path / "topics.csv", [
+        ["效率工具测评", "bili", "88", "", "", "2026-09-10T10:00:00Z"],
+    ])
+    db_url = f"sqlite:///{tmp_path / 'obs5.db'}"
+
+    assert main(["--input", str(csv_path), "--topics", str(topics_path),
+                 "--db-url", db_url]) == 0
+
+    database = _obs_db(tmp_path, "obs5.db")
+    with database.session() as session:
+        repo = TopicObservationRepository(session)
+        assert repo.count() == 1
+        row = repo.series(keyword="效率工具测评")[0]
+        assert row.post_count == 88
+        assert row.observed_at.isoformat().startswith("2026-09-10")
+
+
+def test_import_csv_invalid_observed_at_returns_error(tmp_path):
+    csv_path = write_csv(tmp_path / "data.csv", sample_rows())
+    db_file = tmp_path / "obs_bad.db"
+
+    assert main(["--input", str(csv_path), "--db-url", f"sqlite:///{db_file}",
+                 "--observed-at", "not-a-time"]) == 1
     assert not db_file.exists()

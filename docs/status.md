@@ -9,7 +9,7 @@
 
 ## 1. 一句话现状
 
-后端 **P0 ~ P5.5 已完成并推送**；全量测试 **430 passed**（需人工执行，见第 2 节 CI 说明）；
+后端 **P0 ~ P5.5 已完成并推送**；全量测试 **446 passed**（需人工执行，见第 2 节 CI 说明）；
 **LLM 链路已用真实端点验证**；**`account_strategy` 的 gather 与最小图的指令路由均已支持 LLM 决策**（默认关闭，失败自动回退确定性路径）；
 **Evaluation 已完成 5/5 项**；**前端已实施**（`app/frontend/`，9 个页面）。
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | 分支 / 远程 | `main` / Gitee |
 | Python | 3.12（`app/backend/.venv`） |
-| 测试 | `.venv/Scripts/python.exe -m pytest` -> 430 passed |
+| 测试 | `.venv/Scripts/python.exe -m pytest` -> 446 passed |
 | CI | `.github/workflows/ci.yml`（GitHub Actions 配置）+ `app/scripts/run_ci.ps1`（本地门槛）。**当前 remote 是 Gitee，workflow 不会自动触发**；前端未接入任何 CI |
 | LLM | 可选；未配置 `LLM_API_KEY` 时全部走确定性规则兜底 |
 
@@ -269,7 +269,10 @@
 - [x] **Alembic 迁移**：`migrations/`（基线 + 「删 comments」增量）、`alembic.ini`、`migrations/README`；
       新增 `database/migrations.py::upgrade_to_head`，生产入口（API 启动 / `import_csv` / `ingest`）改走迁移；
       **既有库自动收养**（stamp 基线再 upgrade）；模型-迁移漂移由 `tests/unit/test_migrations.py` 守护。
-- [ ] Metric「最新快照」语义 vs 时间序列未定（影响趋势/历史分析真实性）
+- [x] **Metric / Topic 的快照 vs 时间序列语义** —— 已决策并落地（[`adr/0006-time-series.md`](adr/0006-time-series.md)）：
+      快照表保持「最新值」语义不变，新增 `metric_observations` / `topic_observations` **只追加**观测表；
+      `import_csv` 同步写入观测并新增 `--observed-at`（同批次重复导入收敛）。
+      **遗留**：观测表暂只有写入方，读取方（话题演变）待做。
 - [x] ~~`data/knowledge/*.index` 未被 `.gitignore` 覆盖~~ —— 已改为忽略整个 `app/backend/data/` 运行产物目录
 
 ### H. 前端（已实施）

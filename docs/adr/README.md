@@ -76,13 +76,14 @@
 | 角色级模型配置（默认模型 + 每角色独立） | MediaRadar `core/model_config_db.py`、`subscription_service/api.py` | 重新实现 | `config.py` 的 `llm_model_*` 字段与 `model_for()`；`llm/factory.py::build_gateway(role=...)`；`api/deps.py::get_gateway` |
 | 熔断器状态可观测 | MediaRadar `core/circuit_breaker.py` + `/api/circuit/states` | 重新实现（只读展示） | `GET /system/status` 新增 `llm_circuit_state` / `llm_circuit_failures` |
 | 周报环比 | MatrixFlow `services/WeeklyReportService.ts: calculateTrendPercent()` | 重新实现 | `services/weekly_report.py` 的 `_change_pct` / `_format_pct` 与「环比」小节 |
+| 时间序列观测表（快照之外的历史） | 无第三方来源（本项目内部决策，产出 **ADR-0006**） | 重新实现 | `domain/observation.py`、`models/observation.py`、`repositories/observation_repo.py`、观测表迁移、`import_csv` 写入接线 + `--observed-at` |
 
 ### 4.2 待评估（未动工）
 
 | 候选 | 关键引用（已核验） | 初判 | 前置条件 |
 |---|---|---|---|
 | 三角色评审图 analyst→reviewer→director | MediaRadar `radar_service/analysis_graph.py`（`reviewer_node`、`route_after_reviewer`） | 参考 | 需先小样本跑 `evaluation/quality_runner` 验证是否真提升；评委与被测同端点，存在自偏好 |
-| 话题演变时间线 | MediaRadar `radar_service/topic_tracker.py`（`build_evolution_timeline` / `get_topic_history` / `_upsert_topic_point`） | 参考 | **被「Metric/Topic 快照 vs 时间序列」未决技术债阻塞**（见 `status.md` G 组） |
+| 话题演变时间线 | MediaRadar `radar_service/topic_tracker.py`（`build_evolution_timeline` / `get_topic_history` / `_upsert_topic_point`） | 参考 | ✅ **前置已解除**：ADR-0006 已落地只追加观测表；下一步是**读侧**（趋势分析接入演变信号） |
 | 周报 / 告警多通道投递 | MediaRadar `radar_service/notifier/`（`base.py` + `registry.py` + email/wecom/feishu/rss） | 参考 | 需先决定是否引入网络出口与凭证；应默认关闭、缺配置不启用 |
 | 持久化任务队列 | MatrixFlow `core/TaskScheduler.ts` + `QueueManager.ts` | 暂不采用 | 本地单进程工具，APScheduler + 磁盘产物够用 |
 
