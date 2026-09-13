@@ -455,6 +455,7 @@ sqlite3.OperationalError: table topic_observations already exists
 | 154 个测试 `PermissionError: [WinError 5]` | 受限沙箱禁止**枚举/删除** pytest 创建的临时子目录 | 放宽沙箱权限后重试；**只用工作区内的 `--basetemp` 无效**——pytest 在 session 结束仍要枚举该目录（已实测） |
 | `git push` 报 `schannel: SEC_E_NO_CREDENTIALS` | 沙箱阻止进程访问 Windows 凭证库 | 在放宽权限后重试 |
 | 控制台中文乱码 | 管道输出时 Python 用 GBK 编码，消费端按 UTF-8 解码 | 设置 `PYTHONIOENCODING=utf-8` |
+| `.ps1` 里的中文变乱码并引发语法错误 | Windows PowerShell 5.1 在**无 UTF-8 BOM** 时按 ANSI 码页（中文系统 GBK）读 `.ps1` | 脚本保持**纯 ASCII**（与既有 `app/scripts/run_ci.ps1` 一致），或写入 UTF-8 BOM |
 | `pip install` 报 `from versions: none` / 下载仅 17 kB/s | 官方 PyPI 在本机极慢且被间歇拒绝 | 换国内镜像：**阿里云实测 3.7 MB/s**（PyPI 17 kB/s，清华 824 kB/s） |
 | `python -m venv` 的 ensurepip 失败、`No module named pip` | 受限沙箱禁止 `CreatePipe`，且 `tempfile.mkdtemp` 建的目录**不可访问** | 放宽权限后用标准 `venv` 重建；临时可手工植入 pip 绕过 |
 | `npm` 警告 `install-scripts ... esbuild` 未执行 | npm 11 的 `allowScripts` 安全策略默认拦截 postinstall | **虚惊**：平台二进制 `@esbuild/win32-x64/esbuild.exe` 已随 optionalDependency 装好，构建正常 |
